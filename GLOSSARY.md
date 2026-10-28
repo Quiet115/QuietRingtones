@@ -33,12 +33,8 @@ Conjunto con nombre de tres elecciones (una por Tipo de sonido) que se aplica de
 _Avoid_: Modo, preset, tema
 
 **Estado original**:
-Los Sonidos activos (incluido Silencio) capturados antes del primer cambio hecho por la app, por Tipo de sonido.
-_Avoid_: Backup, copia
-
-**Restaurar**:
-Volver a Aplicar el Estado original de cada Tipo de sonido.
-_Avoid_: Deshacer, resetear
+Los Sonidos activos (incluido Silencio) de los tres Tipos de sonido, capturados antes del primer cambio hecho por la app. Se muestra siempre como un Perfil de solo lectura, que no se puede borrar ni sobrescribir.
+_Avoid_: Backup, copia, restaurar
 
 **Sonido de reserva**:
 El Sonido que se usa en lugar de uno de un Perfil que ya no existe, para no dejar el sistema sin sonido por accidente.

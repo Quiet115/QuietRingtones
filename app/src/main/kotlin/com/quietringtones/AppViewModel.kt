@@ -77,10 +77,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         reload()
     }
 
-    fun restore() = launchIo {
-        report(app.restore()) { Message(R.string.msg_restored) }
-    }
-
     fun preview(sound: Sound) {
         stopPreview()
         ringtone = runCatching {

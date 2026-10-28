@@ -1,4 +1,4 @@
-package com.quietringtones.core
+﻿package com.quietringtones.core
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -50,7 +50,28 @@ class QuietRingtonesTest {
     }
 
     @Test
-    fun `only the first change per kind is captured as original`() {
+    fun `the first change captures every kind as original`() {
+        val system = system(
+            initial = mapOf(
+                SoundKind.RINGTONE to Selection.Chosen(a),
+                SoundKind.NOTIFICATION to Selection.Chosen(b),
+            ),
+        )
+        val store = FakeStore()
+        app(system, store).apply(SoundKind.RINGTONE, Selection.Chosen(c))
+
+        assertEquals(
+            mapOf(
+                SoundKind.RINGTONE to Selection.Chosen(a),
+                SoundKind.NOTIFICATION to Selection.Chosen(b),
+                SoundKind.ALARM to Selection.Silent,
+            ),
+            store.loadOriginal(),
+        )
+    }
+
+    @Test
+    fun `the original is never overwritten by later changes`() {
         val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
         val store = FakeStore()
         val app = app(system, store)
@@ -58,68 +79,88 @@ class QuietRingtonesTest {
         app.apply(SoundKind.RINGTONE, Selection.Chosen(b))
         app.apply(SoundKind.RINGTONE, Selection.Chosen(c))
 
-        assertEquals(mapOf(SoundKind.RINGTONE to Selection.Chosen(a)), store.loadOriginal())
+        assertEquals(Selection.Chosen(a), store.loadOriginal().getValue(SoundKind.RINGTONE))
     }
 
-    // --- Restaurar ----------------------------------------------------------
+    @Test
+    fun `kinds missing from an older original are captured on the next change`() {
+        val system = system(initial = mapOf(SoundKind.ALARM to Selection.Chosen(b)))
+        val store = FakeStore().apply { saveOriginal(mapOf(SoundKind.RINGTONE to Selection.Chosen(a))) }
+
+        app(system, store).apply(SoundKind.ALARM, Selection.Chosen(c))
+
+        assertEquals(Selection.Chosen(a), store.loadOriginal().getValue(SoundKind.RINGTONE))
+        assertEquals(Selection.Chosen(b), store.loadOriginal().getValue(SoundKind.ALARM))
+    }
+
+    // --- Estado original como perfil ------------------------------------------
 
     @Test
-    fun `restore reapplies the captured originals`() {
+    fun `there is no original profile until something is changed`() {
+        assertTrue(app(system()).profiles().isEmpty())
+    }
+
+    @Test
+    fun `the original shows up as the first profile`() {
+        val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
+        val app = app(system)
+        app.saveProfile("Noche", emptyMap())
+        app.apply(SoundKind.RINGTONE, Selection.Chosen(b))
+
+        val first = app.profiles().first()
+        assertEquals(QuietRingtones.ORIGINAL_ID, first.id)
+        assertEquals(QuietRingtones.ORIGINAL_NAME, first.name)
+        assertEquals(Selection.Chosen(a), first.selections.getValue(SoundKind.RINGTONE))
+        assertEquals(listOf("Noche"), app.profiles().drop(1).map { it.name })
+    }
+
+    @Test
+    fun `applying the original profile restores the sounds including silence`() {
         val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
         val app = app(system)
         app.apply(SoundKind.RINGTONE, Selection.Chosen(b))
+        app.apply(SoundKind.ALARM, Selection.Chosen(c))
 
-        assertEquals(ApplyResult.Applied, app.restore())
+        val result = app.applyProfile(QuietRingtones.ORIGINAL_ID)
+
+        assertEquals(ProfileResult.Done(SoundKind.entries.associateWith { Outcome.APPLIED }), result)
         assertEquals(Selection.Chosen(a), system.current(SoundKind.RINGTONE))
-    }
-
-    @Test
-    fun `an original of silence is restored and is not treated as never captured`() {
-        val system = system(initial = mapOf(SoundKind.ALARM to Selection.Silent))
-        val store = FakeStore()
-        val app = app(system, store)
-        app.apply(SoundKind.ALARM, Selection.Chosen(b))
-
-        assertEquals(mapOf(SoundKind.ALARM to Selection.Silent), store.loadOriginal())
-        app.restore()
         assertEquals(Selection.Silent, system.current(SoundKind.ALARM))
     }
 
     @Test
-    fun `restore with nothing captured touches nothing`() {
+    fun `the original can be applied again after a later change`() {
         val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
-        val result = app(system).restore()
+        val app = app(system)
+        app.apply(SoundKind.RINGTONE, Selection.Chosen(b))
+        app.applyProfile(QuietRingtones.ORIGINAL_ID)
+        app.apply(SoundKind.RINGTONE, Selection.Chosen(c))
 
-        assertEquals(ApplyResult.Applied, result)
-        assertTrue(system.applied.isEmpty())
+        app.applyProfile(QuietRingtones.ORIGINAL_ID)
+
+        assertEquals(Selection.Chosen(a), system.current(SoundKind.RINGTONE))
     }
 
     @Test
-    fun `restore without permission keeps the originals for later`() {
+    fun `the original profile cannot be deleted or reused as a name`() {
         val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
-        val store = FakeStore()
-        val app = app(system, store)
+        val app = app(system)
+        app.apply(SoundKind.RINGTONE, Selection.Chosen(b))
+
+        app.deleteProfile(QuietRingtones.ORIGINAL_ID)
+
+        assertEquals(QuietRingtones.ORIGINAL_ID, app.profiles().first().id)
+        assertFailsWith<IllegalArgumentException> { app.saveProfile(" estado ORIGINAL ", emptyMap()) }
+    }
+
+    @Test
+    fun `applying the original without permission is reported`() {
+        val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
+        val app = app(system)
         app.apply(SoundKind.RINGTONE, Selection.Chosen(b))
         system.canModify = false
 
-        assertEquals(ApplyResult.NeedsPermission, app.restore())
-        assertEquals(mapOf(SoundKind.RINGTONE to Selection.Chosen(a)), store.loadOriginal())
-    }
-
-    @Test
-    fun `after a restore the next change captures a fresh original`() {
-        val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
-        val store = FakeStore()
-        val app = app(system, store)
-        app.apply(SoundKind.RINGTONE, Selection.Chosen(b))
-        app.restore()
-        assertTrue(store.loadOriginal().isEmpty())
-
-        // El usuario cambia el tono por su cuenta en Ajustes; ese pasa a ser el nuevo original.
-        system.apply(SoundKind.RINGTONE, Selection.Chosen(c))
-        app.apply(SoundKind.RINGTONE, Selection.Chosen(b))
-
-        assertEquals(mapOf(SoundKind.RINGTONE to Selection.Chosen(c)), store.loadOriginal())
+        assertEquals(ProfileResult.NeedsPermission, app.applyProfile(QuietRingtones.ORIGINAL_ID))
     }
 
     // --- Importar -------------------------------------------------------------

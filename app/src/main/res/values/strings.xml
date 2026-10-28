@@ -2,7 +2,9 @@
 <resources>
     <string name="app_name">QuietRingtones</string>
 
-    <string name="tab_sounds">Sonidos</string>
+    <string name="tab_calls">Llamadas</string>
+    <string name="tab_notifications">Notificaciones</string>
+    <string name="tab_alarms">Alarmas</string>
     <string name="tab_profiles">Perfiles</string>
 
     <string name="kind_ringtone">Tono de llamada</string>
@@ -25,13 +27,11 @@
     <string name="no_profiles">Aún no tienes perfiles</string>
     <string name="apply">Aplicar</string>
     <string name="delete">Borrar</string>
-    <string name="restore_originals">Restaurar sonidos originales</string>
 
     <string name="msg_applied">Sonido aplicado</string>
     <string name="msg_needs_permission">Falta el permiso para modificar los ajustes del sistema</string>
     <string name="msg_imported">Importado y aplicado: %1$s</string>
     <string name="msg_imported_only">Importado: %1$s. Concede el permiso para usarlo.</string>
-    <string name="msg_restored">Sonidos originales restaurados</string>
     <string name="msg_profile_saved">Perfil guardado: %1$s</string>
     <string name="msg_profile_applied">Perfil aplicado</string>
     <string name="msg_profile_fallback">Perfil aplicado; %1$s sonido(s) ya no existían y se sustituyeron o se omitieron</string>

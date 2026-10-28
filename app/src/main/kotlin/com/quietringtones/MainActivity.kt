@@ -20,15 +20,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -48,6 +47,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.quietringtones.core.Profile
+import com.quietringtones.core.QuietRingtones
 import com.quietringtones.core.Selection
 import com.quietringtones.core.Sound
 import com.quietringtones.core.SoundKind
@@ -96,17 +96,30 @@ private fun MainScreen(viewModel: AppViewModel) {
 
     Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
-            TabRow(selectedTabIndex = tab) {
-                Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text(stringResource(R.string.tab_sounds)) })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text(stringResource(R.string.tab_profiles)) })
+            ScrollableTabRow(selectedTabIndex = tab, edgePadding = 0.dp) {
+                val kinds = SoundKind.entries
+                kinds.forEachIndexed { index, kind ->
+                    Tab(
+                        selected = tab == index,
+                        onClick = { tab = index },
+                        text = { Text(stringResource(kind.tabLabel())) },
+                    )
+                }
+                Tab(
+                    selected = tab == kinds.size,
+                    onClick = { tab = kinds.size },
+                    text = { Text(stringResource(R.string.tab_profiles)) },
+                )
             }
             if (!state.canModify) PermissionBanner()
-            when (tab) {
-                0 -> SoundsTab(
+            val kind = SoundKind.entries.getOrNull(tab)
+            when {
+                kind != null -> SoundsTab(
+                    kind = kind,
                     state = state,
                     onUse = viewModel::use,
                     onPreview = viewModel::preview,
-                    onImport = { kind ->
+                    onImport = {
                         importKind = kind
                         picker.launch(arrayOf("audio/*"))
                     },
@@ -116,7 +129,6 @@ private fun MainScreen(viewModel: AppViewModel) {
                     onSave = viewModel::saveProfile,
                     onApply = viewModel::applyProfile,
                     onDelete = viewModel::deleteProfile,
-                    onRestore = viewModel::restore,
                 )
             }
         }
@@ -140,47 +152,45 @@ private fun PermissionBanner() {
 
 @Composable
 private fun SoundsTab(
+    kind: SoundKind,
     state: UiState,
     onUse: (SoundKind, Selection) -> Unit,
     onPreview: (Sound) -> Unit,
-    onImport: (SoundKind) -> Unit,
+    onImport: () -> Unit,
 ) {
+    val current = state.current[kind]
+    val sounds = state.available[kind].orEmpty()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
-        SoundKind.entries.forEach { kind ->
-            val current = state.current[kind]
-            val sounds = state.available[kind].orEmpty()
-            item(key = "header-${kind.name}") {
-                Column(Modifier.padding(top = 16.dp)) {
-                    Text(stringResource(kind.label()), style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        stringResource(R.string.active_now, current.displayName()),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    OutlinedButton(onClick = { onImport(kind) }) { Text(stringResource(R.string.import_audio)) }
-                }
+        item(key = "header") {
+            Column(Modifier.padding(bottom = 8.dp)) {
+                Text(stringResource(kind.label()), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.active_now, current.displayName()),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                OutlinedButton(onClick = onImport) { Text(stringResource(R.string.import_audio)) }
             }
-            if (sounds.isEmpty()) {
-                item(key = "empty-${kind.name}") { Text(stringResource(R.string.no_sounds)) }
-            }
-            items(sounds, key = { "${kind.name}-${it.id}" }) { sound ->
-                val isActive = (current as? Selection.Chosen)?.sound == sound
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(sound.name, Modifier.weight(1f))
-                    TextButton(onClick = { onPreview(sound) }) { Text(stringResource(R.string.preview)) }
-                    if (isActive) {
-                        Text(stringResource(R.string.active), style = MaterialTheme.typography.labelLarge)
-                    } else {
-                        Button(onClick = { onUse(kind, Selection.Chosen(sound)) }) {
-                            Text(stringResource(R.string.use))
-                        }
+        }
+        if (sounds.isEmpty()) {
+            item(key = "empty") { Text(stringResource(R.string.no_sounds)) }
+        }
+        items(sounds, key = { it.id }) { sound ->
+            val isActive = (current as? Selection.Chosen)?.sound == sound
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(sound.name, Modifier.weight(1f))
+                TextButton(onClick = { onPreview(sound) }) { Text(stringResource(R.string.preview)) }
+                if (isActive) {
+                    Text(stringResource(R.string.active), style = MaterialTheme.typography.labelLarge)
+                } else {
+                    Button(onClick = { onUse(kind, Selection.Chosen(sound)) }) {
+                        Text(stringResource(R.string.use))
                     }
                 }
             }
-            item(key = "divider-${kind.name}") { HorizontalDivider(Modifier.padding(top = 8.dp)) }
         }
     }
 }
@@ -191,7 +201,6 @@ private fun ProfilesTab(
     onSave: (String) -> Unit,
     onApply: (String) -> Unit,
     onDelete: (String) -> Unit,
-    onRestore: () -> Unit,
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -216,14 +225,19 @@ private fun ProfilesTab(
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(profile.name, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                     Button(onClick = { onApply(profile.id) }) { Text(stringResource(R.string.apply)) }
-                    TextButton(onClick = { onDelete(profile.id) }) { Text(stringResource(R.string.delete)) }
+                    if (profile.id != QuietRingtones.ORIGINAL_ID) {
+                        TextButton(onClick = { onDelete(profile.id) }) { Text(stringResource(R.string.delete)) }
+                    }
                 }
             }
         }
-        OutlinedButton(onClick = onRestore, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.restore_originals))
-        }
     }
+}
+
+private fun SoundKind.tabLabel() = when (this) {
+    SoundKind.RINGTONE -> R.string.tab_calls
+    SoundKind.NOTIFICATION -> R.string.tab_notifications
+    SoundKind.ALARM -> R.string.tab_alarms
 }
 
 private fun SoundKind.label() = when (this) {

@@ -19,7 +19,7 @@ La versión iPhone es una fase posterior y distinta (ver "Límites de plataforma
 4. Como usuario quiero que la app me guíe para conceder el permiso de modificar ajustes, y que me diga claramente si falta, para no fallar en silencio.
 5. Como usuario quiero importar un audio mío (mp3/m4a/ogg/wav) y usarlo como tono, notificación o alarma.
 6. Como usuario quiero guardar perfiles ("Trabajo", "Noche") con un conjunto de tres sonidos y aplicarlos de una vez.
-7. Como usuario quiero restaurar los sonidos que tenía antes de usar la app, para poder deshacer.
+7. Como usuario quiero ver mis sonidos de antes de usar la app como un perfil llamado «Estado original» (solo lectura, siempre disponible) para volver a ellos en un toque.
 8. Como usuario quiero que, si un sonido guardado ya no existe (audio borrado), se me avise y se use uno de reserva en vez de dejar el sistema sin sonido.
 
 ## Decisiones de implementación

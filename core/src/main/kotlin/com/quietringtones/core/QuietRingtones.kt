@@ -18,24 +18,22 @@ class QuietRingtones(
 
     fun apply(kind: SoundKind, selection: Selection): ApplyResult {
         if (!system.canModify()) return ApplyResult.NeedsPermission
-        captureOriginal(kind)
+        captureOriginal()
         system.apply(kind, selection)
         return ApplyResult.Applied
     }
 
-    fun restore(): ApplyResult {
-        if (!system.canModify()) return ApplyResult.NeedsPermission
+    /** El Estado original, si existe, va primero como un perfil más (solo lectura). */
+    fun profiles(): List<Profile> {
         val original = store.loadOriginal()
-        original.forEach { (kind, selection) -> system.apply(kind, selection) }
-        store.saveOriginal(emptyMap())
-        return ApplyResult.Applied
+        val originalProfile = if (original.isEmpty()) emptyList() else listOf(Profile(ORIGINAL_ID, ORIGINAL_NAME, original))
+        return originalProfile + store.loadProfiles()
     }
-
-    fun profiles(): List<Profile> = store.loadProfiles()
 
     fun saveProfile(name: String, selections: Map<SoundKind, Selection>): Profile {
         val clean = name.trim()
         require(clean.isNotEmpty()) { "El nombre del perfil no puede estar vacío" }
+        require(!clean.equals(ORIGINAL_NAME, ignoreCase = true)) { "«$ORIGINAL_NAME» es un nombre reservado" }
         val existing = store.loadProfiles()
         val id = existing.firstOrNull { it.name.equals(clean, ignoreCase = true) }?.id ?: newId()
         val profile = Profile(id, clean, selections)
@@ -50,7 +48,7 @@ class QuietRingtones(
     }
 
     fun applyProfile(id: String): ProfileResult {
-        val profile = store.loadProfiles().firstOrNull { it.id == id } ?: return ProfileResult.NotFound
+        val profile = profiles().firstOrNull { it.id == id } ?: return ProfileResult.NotFound
         if (!system.canModify()) return ProfileResult.NeedsPermission
 
         val outcomes = profile.selections.mapValues { (kind, selection) -> applyOne(kind, selection) }
@@ -67,9 +65,16 @@ class QuietRingtones(
         return Outcome.APPLIED
     }
 
-    private fun captureOriginal(kind: SoundKind) {
+    /** Antes de cualquier cambio, captura lo que falte del Estado original; lo ya capturado no se toca. */
+    private fun captureOriginal() {
         val original = store.loadOriginal()
-        if (kind in original) return
-        store.saveOriginal(original + (kind to system.current(kind)))
+        val missing = SoundKind.entries.filter { it !in original }
+        if (missing.isEmpty()) return
+        store.saveOriginal(original + missing.associateWith { system.current(it) })
+    }
+
+    companion object {
+        const val ORIGINAL_ID = "original"
+        const val ORIGINAL_NAME = "Estado original"
     }
 }

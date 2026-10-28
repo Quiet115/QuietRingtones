@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QuietRingtones</string>
+
+    <string name="tab_sounds">Sonidos</string>
+    <string name="tab_profiles">Perfiles</string>
+
+    <string name="kind_ringtone">Tono de llamada</string>
+    <string name="kind_notification">Notificación</string>
+    <string name="kind_alarm">Alarma</string>
+
+    <string name="permission_needed">Para cambiar los sonidos del sistema, Android necesita que actives «Modificar ajustes del sistema» para esta app.</string>
+    <string name="permission_grant">Conceder permiso</string>
+
+    <string name="active_now">Activo ahora: %1$s</string>
+    <string name="silent">Silencio</string>
+    <string name="no_sounds">No hay sonidos disponibles</string>
+    <string name="use">Usar</string>
+    <string name="active">Activo</string>
+    <string name="preview">Escuchar</string>
+    <string name="import_audio">Importar audio…</string>
+
+    <string name="profile_name_hint">Nombre del perfil</string>
+    <string name="save_current_profile">Guardar sonidos actuales como perfil</string>
+    <string name="no_profiles">Aún no tienes perfiles</string>
+    <string name="apply">Aplicar</string>
+    <string name="delete">Borrar</string>
+    <string name="restore_originals">Restaurar sonidos originales</string>
+
+    <string name="msg_applied">Sonido aplicado</string>
+    <string name="msg_needs_permission">Falta el permiso para modificar los ajustes del sistema</string>
+    <string name="msg_imported">Importado y aplicado: %1$s</string>
+    <string name="msg_imported_only">Importado: %1$s. Concede el permiso para usarlo.</string>
+    <string name="msg_restored">Sonidos originales restaurados</string>
+    <string name="msg_profile_saved">Perfil guardado: %1$s</string>
+    <string name="msg_profile_applied">Perfil aplicado</string>
+    <string name="msg_profile_fallback">Perfil aplicado; %1$s sonido(s) ya no existían y se sustituyeron o se omitieron</string>
+    <string name="msg_profile_missing">El perfil ya no existe</string>
+    <string name="msg_error">Error: %1$s</string>
+</resources>

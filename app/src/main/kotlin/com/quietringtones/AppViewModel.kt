@@ -13,6 +13,7 @@ import com.quietringtones.core.Outcome
 import com.quietringtones.core.Profile
 import com.quietringtones.core.ProfileResult
 import com.quietringtones.core.QuietRingtones
+import com.quietringtones.core.OnlineSound
 import com.quietringtones.core.Release
 import com.quietringtones.core.UpdateCheck
 import com.quietringtones.core.Updater
@@ -20,10 +21,14 @@ import com.quietringtones.core.Version
 import com.quietringtones.core.VolumeAdvice
 import com.quietringtones.core.VolumeAdvisor
 import com.quietringtones.ui.messageRes
+import com.quietringtones.online.CatalogPrefs
+import com.quietringtones.online.OnlineCatalogSource
+import com.quietringtones.online.PreviewCache
 import com.quietringtones.updates.GitHubReleases
 import com.quietringtones.updates.UpdateDownloader
 import com.quietringtones.updates.UpdatePrefs
 import java.io.File
+import java.io.IOException
 import com.quietringtones.core.Selection
 import com.quietringtones.core.Sound
 import com.quietringtones.core.SoundCatalog
@@ -71,6 +76,13 @@ data class UpdateUi(
     val lastChecked: Long = 0L,
     val installedVersion: String = "",
 )
+
+sealed interface OnlineState {
+    data object Idle : OnlineState
+    data object Loading : OnlineState
+    data class Loaded(val sounds: List<OnlineSound>) : OnlineState
+    data object Failed : OnlineState
+}
 
 data class VolumeUi(val index: Int, val min: Int, val max: Int, val advice: VolumeAdvice)
 
@@ -130,6 +142,102 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(message = Message(R.string.msg_volume_blocked)) }
         }
         _volumeState.value = readVolumes()
+    }
+
+    // --- Catálogo online ------------------------------------------------------------
+
+    private val catalogPrefs = CatalogPrefs(application)
+    private val previewCache = PreviewCache(File(application.cacheDir, "previews"))
+    private val onlineSource = OnlineCatalogSource(File(application.cacheDir, "catalog.json"), "QuietRingtones/${application.packageName}")
+    private val userAgent = "QuietRingtones"
+
+    private val _online = MutableStateFlow<OnlineState>(OnlineState.Idle)
+    val online: StateFlow<OnlineState> = _online
+
+    private val _showOnline = MutableStateFlow(catalogPrefs.showOnline)
+    val showOnline: StateFlow<Boolean> = _showOnline
+
+    /** Identificador del sonido online que se está descargando, si hay alguno. */
+    private val _downloading = MutableStateFlow<String?>(null)
+    val downloading: StateFlow<String?> = _downloading
+
+    private val _cacheSize = MutableStateFlow(previewCache.sizeBytes())
+    val cacheSize: StateFlow<Long> = _cacheSize
+
+    /** Carga el catálogo la primera vez que se necesita; sin conexión usa la última copia guardada. */
+    fun loadOnline() {
+        if (!_showOnline.value) return
+        if (_online.value is OnlineState.Loading || _online.value is OnlineState.Loaded) return
+        _online.value = OnlineState.Loading
+        viewModelScope.launch {
+            val result = runCatching { withContext(Dispatchers.IO) { onlineSource.load() } }
+            _online.value = result.fold({ OnlineState.Loaded(it) }, { OnlineState.Failed })
+        }
+    }
+
+    fun retryOnline() {
+        _online.value = OnlineState.Idle
+        loadOnline()
+    }
+
+    fun setShowOnline(show: Boolean) {
+        catalogPrefs.showOnline = show
+        _showOnline.value = show
+        if (show) loadOnline() else stopPreview()
+    }
+
+    /** Un toque descarga el clip a la caché (si hace falta) y lo escucha; otro toque lo detiene. */
+    fun previewOnline(kind: SoundKind, sound: OnlineSound) {
+        val key = "online:${sound.id}"
+        if (_playing.value == key) {
+            stopPreview()
+            return
+        }
+        if (_downloading.value != null) return
+        stopPreview()
+        previewCache.cached(sound)?.let { startPreview(kind, key, Uri.fromFile(it)); return }
+        _downloading.value = sound.id
+        viewModelScope.launch {
+            val result = runCatching { withContext(Dispatchers.IO) { previewCache.download(sound, userAgent) } }
+            _downloading.value = null
+            _cacheSize.value = previewCache.sizeBytes()
+            result.fold(
+                { startPreview(kind, key, Uri.fromFile(it)) },
+                { _state.update { s -> s.copy(message = Message(R.string.msg_download_failed)) } },
+            )
+        }
+    }
+
+    /** Usar guarda el sonido de verdad: queda entre tus audios y se aplica. */
+    fun useOnline(kind: SoundKind, sound: OnlineSound) {
+        if (_downloading.value != null) return
+        _downloading.value = sound.id
+        viewModelScope.launch {
+            val message = try {
+                withContext(Dispatchers.IO) {
+                    val file = previewCache.download(sound, userAgent)
+                    val saved = app.importSound(Uri.fromFile(file).toString(), "${sound.title}.ogg", kind)
+                    when (app.apply(kind, Selection.Chosen(saved))) {
+                        ApplyResult.Applied -> Message(R.string.msg_added_online, sound.title)
+                        ApplyResult.NeedsPermission -> Message(R.string.msg_added_only, sound.title)
+                    }
+                }
+            } catch (e: IOException) {
+                Message(R.string.msg_download_failed)
+            } catch (e: Exception) {
+                Message(R.string.msg_error, e.message ?: e.javaClass.simpleName)
+            }
+            _downloading.value = null
+            _cacheSize.value = previewCache.sizeBytes()
+            withContext(Dispatchers.IO) { reload(message) }
+        }
+    }
+
+    fun clearPreviewCache() {
+        stopPreview()
+        previewCache.clear()
+        _cacheSize.value = 0
+        _state.update { it.copy(message = Message(R.string.msg_cache_cleared)) }
     }
 
     // --- Actualizaciones --------------------------------------------------------
@@ -295,6 +403,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val wasPlaying = _playing.value == sound.id
         stopPreview()
         if (wasPlaying) return
+        startPreview(kind, sound.id, Uri.parse(sound.id))
+    }
+
+    /** Reproduce [uri] con el canal de audio de [kind]; [key] identifica qué fila está sonando. */
+    private fun startPreview(kind: SoundKind, key: String, uri: Uri) {
         val advice = readVolumes().getValue(kind).advice
         if (advice != VolumeAdvice.OK && advice != VolumeAdvice.LOW) {
             _state.update { it.copy(message = Message(advice.messageRes())) }
@@ -306,13 +419,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
         val next = MediaPlayer()
         player = next
-        _playing.value = sound.id
+        _playing.value = key
         _progress.value = 0f
         try {
             next.setAudioAttributes(
                 AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build(),
             )
-            next.setDataSource(getApplication<Application>(), Uri.parse(sound.id))
+            next.setDataSource(getApplication<Application>(), uri)
             next.setOnCompletionListener { if (player === next) stopPreview() }
             next.setOnErrorListener { _, _, _ ->
                 if (player === next) stopPreview()

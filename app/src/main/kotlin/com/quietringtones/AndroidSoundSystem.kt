@@ -1,4 +1,4 @@
-﻿package com.quietringtones
+package com.quietringtones
 
 import android.content.ContentValues
 import android.content.Context
@@ -48,7 +48,7 @@ class AndroidSoundSystem(private val context: Context) : SoundSystem {
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.DISPLAY_NAME, displayName)
             put(MediaStore.Audio.Media.TITLE, displayName.substringBeforeLast('.'))
-            put(MediaStore.Audio.Media.MIME_TYPE, resolver.getType(sourceUri) ?: "audio/mpeg")
+            put(MediaStore.Audio.Media.MIME_TYPE, resolver.getType(sourceUri) ?: mimeFromName(displayName))
             put(MediaStore.Audio.Media.RELATIVE_PATH, kind.directory())
             put(MediaStore.Audio.Media.IS_RINGTONE, kind == SoundKind.RINGTONE)
             put(MediaStore.Audio.Media.IS_NOTIFICATION, kind == SoundKind.NOTIFICATION)
@@ -68,6 +68,13 @@ class AndroidSoundSystem(private val context: Context) : SoundSystem {
             throw e
         }
         return Sound(target.toString(), displayName.substringBeforeLast('.'))
+    }
+
+    private fun mimeFromName(name: String) = when (name.substringAfterLast('.', "").lowercase()) {
+        "ogg", "oga" -> "audio/ogg"
+        "m4a", "mp4" -> "audio/mp4"
+        "wav" -> "audio/x-wav"
+        else -> "audio/mpeg"
     }
 
     /** El título puede fallar para URIs externos sin permiso de lectura: se usa un nombre de reserva. */

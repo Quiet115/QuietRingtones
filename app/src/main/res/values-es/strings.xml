@@ -108,4 +108,20 @@
 
     <string name="your_audio">Tu audio</string>
     <string name="phone_sounds">Sonidos del teléfono</string>
+
+    <string name="settings_catalog">Catálogo</string>
+    <string name="online_catalog">Catálogo online</string>
+    <string name="online_catalog_help">Clips de música clásica. Reproduce uno para oír un adelanto; Usar lo guarda.</string>
+    <string name="online_loading">Cargando el catálogo…</string>
+    <string name="online_failed">No se pudo cargar el catálogo online. Revisa tu conexión.</string>
+    <string name="added">Añadido</string>
+    <string name="catalog_show">Mostrar el catálogo online</string>
+    <string name="catalog_show_help">Añade clips de música clásica desde GitHub a cada pestaña. Los adelantos se descargan a una caché temporal.</string>
+    <string name="cache_size">Caché de adelantos: %1$s</string>
+    <string name="cache_help">Los sonidos que añadiste con Usar se conservan. Vaciar la caché solo borra los adelantos.</string>
+    <string name="clear_cache">Vaciar caché</string>
+    <string name="msg_download_failed">No se pudo descargar este sonido. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="msg_added_online">Añadido y en uso: %1$s</string>
+    <string name="msg_added_only">Añadido: %1$s. Da el permiso para usarlo.</string>
+    <string name="msg_cache_cleared">Caché vaciada</string>
 </resources>

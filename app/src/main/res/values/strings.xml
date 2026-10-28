@@ -108,4 +108,20 @@
 
     <string name="your_audio">Your audio</string>
     <string name="phone_sounds">Phone sounds</string>
+
+    <string name="settings_catalog">Catalog</string>
+    <string name="online_catalog">Online catalog</string>
+    <string name="online_catalog_help">Classical clips. Play one to hear a preview; Use saves it.</string>
+    <string name="online_loading">Loading the catalog…</string>
+    <string name="online_failed">Couldn\'t load the online catalog. Check your connection.</string>
+    <string name="added">Added</string>
+    <string name="catalog_show">Show the online catalog</string>
+    <string name="catalog_show_help">Adds classical clips from GitHub to each tab. Previews download to a temporary cache.</string>
+    <string name="cache_size">Preview cache: %1$s</string>
+    <string name="cache_help">Sounds you added with Use are kept. Clearing the cache only removes previews.</string>
+    <string name="clear_cache">Clear cache</string>
+    <string name="msg_download_failed">Couldn\'t download this sound. Check your connection and try again.</string>
+    <string name="msg_added_online">Added and in use: %1$s</string>
+    <string name="msg_added_only">Added: %1$s. Allow the permission to use it.</string>
+    <string name="msg_cache_cleared">Cache cleared</string>
 </resources>

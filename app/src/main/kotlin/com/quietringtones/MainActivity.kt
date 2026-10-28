@@ -18,6 +18,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,6 +35,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -71,9 +73,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.quietringtones.core.Profile
 import com.quietringtones.core.QuietRingtones
 import com.quietringtones.core.Selection
+import com.quietringtones.core.OnlineSound
 import com.quietringtones.core.Sound
 import com.quietringtones.core.SoundCatalog
 import com.quietringtones.core.SoundKind
+import com.quietringtones.core.forKind
+import com.quietringtones.online.CatalogSettingsTab
 import com.quietringtones.ui.CheckMark
 import com.quietringtones.ui.Language
 import com.quietringtones.ui.LanguageStore
@@ -134,6 +139,10 @@ private fun MainScreen(viewModel: AppViewModel) {
     // Se lee al dibujar la onda, no al componer: el barrido no recompone la pantalla.
     val progress = viewModel.progress.collectAsStateWithLifecycle()
     val volumes by viewModel.volume.collectAsStateWithLifecycle()
+    val onlineState by viewModel.online.collectAsStateWithLifecycle()
+    val downloading by viewModel.downloading.collectAsStateWithLifecycle()
+    val showOnline by viewModel.showOnline.collectAsStateWithLifecycle()
+    val cacheSize by viewModel.cacheSize.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val updates by viewModel.updates.collectAsStateWithLifecycle()
@@ -144,6 +153,8 @@ private fun MainScreen(viewModel: AppViewModel) {
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
     LaunchedEffect(Unit) { viewModel.autoCheckOnStart() }
+    // El catálogo online se pide la primera vez que se abre una pestaña de sonidos, no al arrancar.
+    LaunchedEffect(tab) { if (tab < SoundKind.entries.size) viewModel.loadOnline() }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -183,6 +194,10 @@ private fun MainScreen(viewModel: AppViewModel) {
                         importKind = kind
                         picker.launch(arrayOf("audio/*"))
                     },
+                    online = OnlineUi(showOnline, onlineState, downloading),
+                    onPreviewOnline = { sound -> viewModel.previewOnline(kind, sound) },
+                    onUseOnline = { sound -> viewModel.useOnline(kind, sound) },
+                    onRetryOnline = viewModel::retryOnline,
                 )
             } else if (tab == SoundKind.entries.size) {
                 ProfilesTab(
@@ -197,6 +212,14 @@ private fun MainScreen(viewModel: AppViewModel) {
                     onAppearance = viewModel::setAppearance,
                     language = language,
                     onLanguage = viewModel::setLanguage,
+                    catalogPage = {
+                        CatalogSettingsTab(
+                            showOnline = showOnline,
+                            onShowOnline = viewModel::setShowOnline,
+                            cacheBytes = cacheSize,
+                            onClearCache = viewModel::clearPreviewCache,
+                        )
+                    },
                     updatesPage = {
                         UpdatesTab(
                             ui = updates,
@@ -298,6 +321,10 @@ private fun SoundsTab(
     onUse: (SoundKind, Selection) -> Unit,
     onTogglePreview: (Sound) -> Unit,
     onImport: () -> Unit,
+    online: OnlineUi,
+    onPreviewOnline: (OnlineSound) -> Unit,
+    onUseOnline: (OnlineSound) -> Unit,
+    onRetryOnline: () -> Unit,
 ) {
     val current = state.current[kind]
     val currentSound = (current as? Selection.Chosen)?.sound
@@ -336,7 +363,105 @@ private fun SoundsTab(
             item(key = "phone-header") { SectionLabel(stringResource(R.string.phone_sounds)) }
         }
         soundRows(catalog.system, "phone", kind, currentSound, playing, progress, onUse, onTogglePreview)
+        if (online.visible) {
+            item(key = "online-header") { SectionLabel(stringResource(R.string.online_catalog), stringResource(R.string.online_catalog_help)) }
+            when (val s = online.state) {
+                OnlineState.Idle, OnlineState.Loading -> item(key = "online-loading") { StatusLine(stringResource(R.string.online_loading)) }
+                OnlineState.Failed -> item(key = "online-failed") {
+                    Column {
+                        StatusLine(stringResource(R.string.online_failed))
+                        TextButton(onClick = onRetryOnline, modifier = Modifier.padding(start = 12.dp)) { Text(stringResource(R.string.try_again)) }
+                    }
+                }
+                is OnlineState.Loaded -> items(s.sounds.forKind(kind), key = { "online-${it.id}" }) { sound ->
+                    OnlineRow(
+                        sound = sound,
+                        added = sound.isAddedTo(catalog.yours),
+                        playing = playing == "online:${sound.id}",
+                        downloading = online.downloading == sound.id,
+                        busy = online.downloading != null,
+                        progress = progress,
+                        onTogglePreview = { onPreviewOnline(sound) },
+                        onUse = { onUseOnline(sound) },
+                    )
+                }
+            }
+        }
     }
+}
+
+private data class OnlineUi(val visible: Boolean, val state: OnlineState, val downloading: String?)
+
+@Composable
+private fun StatusLine(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+    )
+}
+
+@Composable
+private fun OnlineRow(
+    sound: OnlineSound,
+    added: Boolean,
+    playing: Boolean,
+    downloading: Boolean,
+    busy: Boolean,
+    progress: () -> Float,
+    onTogglePreview: () -> Unit,
+    onUse: () -> Unit,
+) {
+    Column {
+        Row(
+            Modifier.fillMaxWidth().defaultMinSize(minHeight = 72.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (downloading) {
+                Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 3.dp)
+                }
+            } else {
+                PlayStopButton(
+                    playing = playing,
+                    onClick = onTogglePreview,
+                    onClickLabel = stringResource(if (playing) R.string.stop else R.string.preview),
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                Text(sound.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    "${sound.artist}, ${formatClock(sound.seconds)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Waveform(
+                    seed = "online:${sound.id}",
+                    lit = false,
+                    progress = if (playing) progress else null,
+                    modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(18.dp),
+                )
+            }
+            if (added) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    CheckMark(MaterialTheme.colorScheme.primary)
+                    Text(stringResource(R.string.added), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            } else {
+                FilledTonalButton(onClick = onUse, enabled = !busy) { Text(stringResource(R.string.use)) }
+            }
+        }
+        HorizontalDivider(Modifier.padding(start = 72.dp), color = MaterialTheme.colorScheme.outlineVariant)
+    }
+}
+
+private fun formatClock(seconds: Double): String {
+    val total = seconds.toInt()
+    return "%d:%02d".format(total / 60, total % 60)
 }
 
 private fun LazyListScope.soundRows(
@@ -362,13 +487,13 @@ private fun LazyListScope.soundRows(
 }
 
 @Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text,
-        style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp),
-    )
+private fun SectionLabel(text: String, hint: String? = null) {
+    Column(Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp)) {
+        Text(text, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (hint != null) {
+            Text(hint, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
 }
 
 @Composable

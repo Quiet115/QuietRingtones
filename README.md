@@ -14,9 +14,11 @@ Change your Android ringtone, notification sound and alarm sound in one tap, imp
 - Themes: Obsidian (default, dark), Felt (light) and a custom palette with your own accent and background.
 - Languages: English (default) and Spanish.
 
+- Volume bar and warnings: each tab shows the volume of that sound type and warns when you would not hear it (volume off or low, silent or vibrate, Do Not Disturb).
+- Online catalog: classical clips from the [QuietRingtones-catalog](https://github.com/Quiet115/QuietRingtones-catalog) repository. Play one to hear a preview (it downloads to a cache you can clear in Settings), and tap Use to keep it. Your own imported audio stays at the top of each list.
 - Updates: checks GitHub Releases when you open the app (on by default, can be turned off, or tap *Check for updates*). New versions download over Wi-Fi and you confirm the install. Older versions stay available on the [releases page](https://github.com/Quiet115/QuietRingtones/releases).
 
-Everything stays on your device. There is no account, no server and no analytics. The only network use is checking for and downloading updates from GitHub, and no data about you is sent.
+Everything stays on your device. There is no account, no server and no analytics. The only network use is checking for and downloading updates, and the online catalog, both from GitHub. No data about you is sent.
 
 ## Platform limits
 

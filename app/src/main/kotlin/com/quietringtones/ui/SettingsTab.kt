@@ -1,12 +1,14 @@
 package com.quietringtones.ui
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
@@ -33,30 +35,29 @@ fun SettingsTab(
     language: Language,
     onLanguage: (Language) -> Unit,
     updatesPage: @Composable () -> Unit,
+    catalogPage: @Composable () -> Unit,
 ) {
+    // Actualizaciones va primero: es lo que se abre al entrar en Configuración.
+    val pages = listOf(R.string.settings_updates, R.string.settings_appearance, R.string.settings_language, R.string.settings_catalog)
     var page by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = page == 0,
-                onClick = { page = 0 },
-                label = { Text(stringResource(R.string.settings_appearance)) },
-            )
-            FilterChip(
-                selected = page == 1,
-                onClick = { page = 1 },
-                label = { Text(stringResource(R.string.settings_language)) },
-            )
-            FilterChip(
-                selected = page == 2,
-                onClick = { page = 2 },
-                label = { Text(stringResource(R.string.settings_updates)) },
-            )
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            pages.forEachIndexed { index, label ->
+                FilterChip(
+                    selected = page == index,
+                    onClick = { page = index },
+                    label = { Text(stringResource(label)) },
+                )
+            }
         }
         when (page) {
-            0 -> AppearanceTab(appearance, onAppearance)
-            1 -> LanguageTab(language, onLanguage)
-            else -> updatesPage()
+            0 -> updatesPage()
+            1 -> AppearanceTab(appearance, onAppearance)
+            2 -> LanguageTab(language, onLanguage)
+            else -> catalogPage()
         }
     }
 }

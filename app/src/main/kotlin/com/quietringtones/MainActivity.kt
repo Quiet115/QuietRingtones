@@ -75,6 +75,7 @@ import com.quietringtones.ui.Language
 import com.quietringtones.ui.LanguageStore
 import com.quietringtones.ui.SettingsTab
 import com.quietringtones.ui.withLanguage
+import com.quietringtones.updates.UpdatesTab
 import com.quietringtones.ui.PlayStopButton
 import com.quietringtones.ui.QuietTheme
 import com.quietringtones.ui.Waveform
@@ -121,12 +122,14 @@ private fun MainScreen(viewModel: AppViewModel) {
     val playing by viewModel.playing.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
+    val updates by viewModel.updates.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var importKind by rememberSaveable { mutableStateOf(SoundKind.RINGTONE) }
 
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    LaunchedEffect(Unit) { viewModel.autoCheckOnStart() }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -177,6 +180,15 @@ private fun MainScreen(viewModel: AppViewModel) {
                     onAppearance = viewModel::setAppearance,
                     language = language,
                     onLanguage = viewModel::setLanguage,
+                    updatesPage = {
+                        UpdatesTab(
+                            ui = updates,
+                            onAutomatic = viewModel::setAutomaticUpdates,
+                            onCheck = viewModel::checkNow,
+                            onDownload = viewModel::download,
+                            onSkip = viewModel::skip,
+                        )
+                    },
                 )
             }
         }

@@ -14,7 +14,9 @@ Change your Android ringtone, notification sound and alarm sound in one tap, imp
 - Themes: Obsidian (default, dark), Felt (light) and a custom palette with your own accent and background.
 - Languages: English (default) and Spanish.
 
-Everything stays on your device. There is no account, no server and no analytics.
+- Updates: checks GitHub Releases when you open the app (on by default, can be turned off, or tap *Check for updates*). New versions download over Wi-Fi and you confirm the install. Older versions stay available on the [releases page](https://github.com/Quiet115/QuietRingtones/releases).
+
+Everything stays on your device. There is no account, no server and no analytics. The only network use is checking for and downloading updates from GitHub, and no data about you is sent.
 
 ## Platform limits
 
@@ -38,6 +40,16 @@ Requirements: JDK 17 and the Android SDK (platform 35, build-tools 34.0.0).
    ```
 
    On Windows use `gradlew.bat`. The debug APK is written to `app/build/outputs/apk/debug/`.
+
+## Releasing
+
+Releases are signed APKs attached to GitHub releases. Every release must be signed with the same key, or installed copies cannot update.
+
+1. Put the signing details in `keystore.properties` (not committed): `storeFile`, `storePassword`, `keyAlias`, `keyPassword`. Back up the keystore file; if it is lost, nobody can update.
+2. Bump `versionCode` and `versionName` in `app/build.gradle.kts`, commit and push.
+3. Run `./scripts/release.ps1 -Version X.Y.Z -Notes "What changed"`. It runs the tests, builds the release APK and creates the `vX.Y.Z` release on GitHub.
+
+Debug builds use a different signature and cannot be updated from a release: uninstall the debug build first.
 
 ## Project layout
 

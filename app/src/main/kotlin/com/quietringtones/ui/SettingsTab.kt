@@ -32,6 +32,7 @@ fun SettingsTab(
     onAppearance: (Appearance) -> Unit,
     language: Language,
     onLanguage: (Language) -> Unit,
+    updatesPage: @Composable () -> Unit,
 ) {
     var page by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
@@ -46,8 +47,17 @@ fun SettingsTab(
                 onClick = { page = 1 },
                 label = { Text(stringResource(R.string.settings_language)) },
             )
+            FilterChip(
+                selected = page == 2,
+                onClick = { page = 2 },
+                label = { Text(stringResource(R.string.settings_updates)) },
+            )
         }
-        if (page == 0) AppearanceTab(appearance, onAppearance) else LanguageTab(language, onLanguage)
+        when (page) {
+            0 -> AppearanceTab(appearance, onAppearance)
+            1 -> LanguageTab(language, onLanguage)
+            else -> updatesPage()
+        }
     }
 }
 

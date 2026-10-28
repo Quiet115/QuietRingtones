@@ -3,6 +3,7 @@ package com.quietringtones
 import android.app.Application
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.net.ConnectivityManager
 import android.net.Uri
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
@@ -12,6 +13,14 @@ import com.quietringtones.core.Outcome
 import com.quietringtones.core.Profile
 import com.quietringtones.core.ProfileResult
 import com.quietringtones.core.QuietRingtones
+import com.quietringtones.core.Release
+import com.quietringtones.core.UpdateCheck
+import com.quietringtones.core.Updater
+import com.quietringtones.core.Version
+import com.quietringtones.updates.GitHubReleases
+import com.quietringtones.updates.UpdateDownloader
+import com.quietringtones.updates.UpdatePrefs
+import java.io.File
 import com.quietringtones.core.Selection
 import com.quietringtones.core.Sound
 import com.quietringtones.core.SoundKind
@@ -38,6 +47,26 @@ data class UiState(
     val message: Message? = null,
 )
 
+private const val DAY_MS = 24L * 60 * 60 * 1000
+
+sealed interface UpdateStatus {
+    data object Idle : UpdateStatus
+    data object Checking : UpdateStatus
+    data object UpToDate : UpdateStatus
+    data object Failed : UpdateStatus
+    data class Available(val release: Release) : UpdateStatus
+    data class Downloading(val release: Release, val percent: Int) : UpdateStatus
+    data class Ready(val release: Release, val apk: File) : UpdateStatus
+    data class DownloadFailed(val release: Release) : UpdateStatus
+}
+
+data class UpdateUi(
+    val status: UpdateStatus = UpdateStatus.Idle,
+    val automatic: Boolean = true,
+    val lastChecked: Long = 0L,
+    val installedVersion: String = "",
+)
+
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = QuietRingtones(AndroidSoundSystem(application), PrefsStore(application))
     private var ringtone: Ringtone? = null
@@ -53,6 +82,106 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun setAppearance(appearance: Appearance) {
         _appearance.value = appearance
         appearanceStore.save(appearance)
+    }
+
+    // --- Actualizaciones --------------------------------------------------------
+
+    private val updatePrefs = UpdatePrefs(application)
+    private val installed: Version = runCatching {
+        Version.parse(application.packageManager.getPackageInfo(application.packageName, 0).versionName.orEmpty())
+    }.getOrNull() ?: Version(listOf(0))
+    private val updater = Updater(GitHubReleases("QuietRingtones/$installed"), installed)
+    private var autoChecked = false
+
+    private val _updates = MutableStateFlow(
+        UpdateUi(
+            automatic = updatePrefs.automatic,
+            lastChecked = updatePrefs.lastChecked,
+            installedVersion = installed.toString(),
+        ),
+    )
+    val updates: StateFlow<UpdateUi> = _updates
+
+    private fun setUpdate(change: (UpdateUi) -> UpdateUi) = _updates.update(change)
+
+    /** Al abrir la app, como mucho una vez al día y solo si las automáticas están activadas. */
+    fun autoCheckOnStart() {
+        if (autoChecked) return
+        autoChecked = true
+        if (!updatePrefs.automatic) return
+        if (System.currentTimeMillis() - updatePrefs.lastChecked < DAY_MS) return
+        runCheck(manual = false)
+    }
+
+    fun checkNow() = runCheck(manual = true)
+
+    fun setAutomaticUpdates(enabled: Boolean) {
+        updatePrefs.automatic = enabled
+        setUpdate { it.copy(automatic = enabled) }
+    }
+
+    fun skip(release: Release) {
+        updatePrefs.skippedVersion = release.version.toString()
+        setUpdate { it.copy(status = UpdateStatus.UpToDate) }
+    }
+
+    fun download(release: Release) {
+        val current = _updates.value.status
+        if (current is UpdateStatus.Checking || current is UpdateStatus.Downloading) return
+        setUpdate { it.copy(status = UpdateStatus.Downloading(release, 0)) }
+        viewModelScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    UpdateDownloader(getApplication()).download(release) { percent ->
+                        setUpdate { it.copy(status = UpdateStatus.Downloading(release, percent)) }
+                    }
+                }
+            }
+            setUpdate {
+                it.copy(
+                    status = result.fold(
+                        onSuccess = { file -> UpdateStatus.Ready(release, file) },
+                        onFailure = { UpdateStatus.DownloadFailed(release) },
+                    ),
+                )
+            }
+        }
+    }
+
+    private fun runCheck(manual: Boolean) {
+        val current = _updates.value.status
+        if (current is UpdateStatus.Checking || current is UpdateStatus.Downloading) return
+        setUpdate { it.copy(status = UpdateStatus.Checking) }
+        viewModelScope.launch {
+            val skipped = if (manual) null else updatePrefs.skippedVersion?.let(Version::parse)
+            val result = withContext(Dispatchers.IO) { updater.check(skipped) }
+            val now = System.currentTimeMillis()
+            updatePrefs.lastChecked = now
+            setUpdate { it.copy(lastChecked = now) }
+            when (result) {
+                UpdateCheck.UpToDate -> setUpdate { it.copy(status = UpdateStatus.UpToDate) }
+                is UpdateCheck.Failed -> setUpdate { it.copy(status = UpdateStatus.Failed) }
+                is UpdateCheck.Available -> {
+                    val release = result.release
+                    if (!manual && updatePrefs.automatic && isUnmetered()) {
+                        setUpdate { it.copy(status = UpdateStatus.Available(release)) }
+                        download(release)
+                    } else {
+                        setUpdate { it.copy(status = UpdateStatus.Available(release)) }
+                    }
+                    if (!manual) {
+                        _state.update {
+                            it.copy(message = Message(R.string.msg_update_available, release.version.toString()))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun isUnmetered(): Boolean {
+        val manager = getApplication<Application>().getSystemService(ConnectivityManager::class.java)
+        return manager != null && !manager.isActiveNetworkMetered
     }
 
     private val languageStore = LanguageStore(application)

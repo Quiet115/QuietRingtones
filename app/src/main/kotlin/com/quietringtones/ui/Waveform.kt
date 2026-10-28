@@ -24,6 +24,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
@@ -55,7 +56,8 @@ fun Waveform(
 ) {
     val heights = remember(seed) { barHeights(seed) }
     val sweep = if (playing) sweepProgress() else 0f
-    val on = MaterialTheme.colorScheme.primary
+    val accent = MaterialTheme.colorScheme.primary
+    val accent2 = MaterialTheme.colorScheme.tertiary
     val off = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
 
     Canvas(modifier) {
@@ -66,7 +68,7 @@ fun Waveform(
             val x = slot * i + slot / 2
             val half = h * size.height / 2
             drawLine(
-                color = if (isOn) on else off,
+                color = if (isOn) lerp(accent, accent2, t) else off,
                 start = Offset(x, size.height / 2 - half),
                 end = Offset(x, size.height / 2 + half),
                 strokeWidth = slot * 0.5f,

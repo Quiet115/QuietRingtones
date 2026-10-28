@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">QuietRingtones</string>
 
@@ -47,16 +47,21 @@
     <string name="language_english">English</string>
     <string name="language_spanish">Español</string>
 
-    <string name="palette_obsidiana">Obsidian</string>
-    <string name="palette_obsidiana_desc">Volcanic-glass black with an ice accent. The default.</string>
-    <string name="palette_fieltro">Felt</string>
-    <string name="palette_fieltro_desc">Light grey with an ultramarine accent.</string>
-    <string name="palette_custom">Custom</string>
-    <string name="palette_custom_desc">Pick your own accent and background.</string>
-    <string name="accent_color">Accent color</string>
-    <string name="background_color">Background</string>
-    <string name="hex_label">Color code</string>
-    <string name="hex_error">Enter six digits, for example #3B4FE0</string>
+    <string name="palette_group_dark">Dark</string>
+    <string name="palette_group_colorful">Colorful</string>
+    <string name="palette_group_light">Light</string>
+    <string name="palette_group_system">System</string>
+    <string name="palette_wallpaper">Wallpaper</string>
+    <string name="palette_wallpaper_desc">Uses your wallpaper colors (Android 12 and later).</string>
+    <string name="your_palettes">Your palettes</string>
+    <string name="create_palette">Create palette</string>
+    <string name="palette_editor_title">Palette</string>
+    <string name="palette_name_hint">Palette name</string>
+    <string name="accent_hue">Accent hue</string>
+    <string name="background_hue">Background hue</string>
+    <string name="background_tint">Background tint</string>
+    <string name="edit">Edit</string>
+    <string name="save">Save</string>
     <string name="dark_mode">Dark mode</string>
 
     <string name="msg_applied">In use: %1$s</string>

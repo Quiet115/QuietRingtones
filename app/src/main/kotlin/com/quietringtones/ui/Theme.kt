@@ -1,11 +1,16 @@
 package com.quietringtones.ui
 
+import android.os.Build
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
@@ -13,10 +18,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
-private fun colorScheme(seed: PaletteSeed): ColorScheme {
-    val c = derive(seed)
-    val base = if (seed.dark) darkColorScheme() else lightColorScheme()
+private fun colorScheme(palette: Palette): ColorScheme {
+    val c = derive(palette)
+    val base = if (palette.dark) darkColorScheme() else lightColorScheme()
     return base.copy(
+        tertiary = Color(c.secondary),
         primary = Color(c.primary),
         onPrimary = Color(c.onPrimary),
         primaryContainer = Color(c.primaryContainer),
@@ -67,8 +73,15 @@ fun donateColors(): DonateColors =
 
 @Composable
 fun QuietTheme(appearance: Appearance, content: @Composable () -> Unit) {
+    val context = LocalContext.current
+    val systemDark = isSystemInDarkTheme()
+    val scheme = if (appearance.isWallpaper && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        if (systemDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    } else {
+        colorScheme(appearance.palette())
+    }
     MaterialTheme(
-        colorScheme = colorScheme(appearance.seed()),
+        colorScheme = scheme,
         typography = QuietTypography,
         content = content,
     )

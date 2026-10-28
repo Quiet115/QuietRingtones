@@ -14,6 +14,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -99,7 +100,7 @@ class MainActivity : ComponentActivity() {
             val appearance by viewModel.appearance.collectAsStateWithLifecycle()
             val language by viewModel.language.collectAsStateWithLifecycle()
             LaunchedEffect(language) { if (language != activeLanguage) recreate() }
-            val dark = appearance.seed().dark
+            val dark = appearance.isDark(isSystemInDarkTheme())
             SideEffect {
                 val bars = if (dark) SystemBarStyle.dark(Color.TRANSPARENT) else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(statusBarStyle = bars, navigationBarStyle = bars)

@@ -1,5 +1,6 @@
 package com.quietringtones.ui
 
+import kotlin.math.abs
 import kotlin.math.pow
 
 /** Matemática de color sobre enteros ARGB, sin dependencias de Android ni de Compose (se prueba en JVM). */
@@ -29,6 +30,24 @@ object PaletteMath {
         return (0xFF shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0)
     }
 
+    /** Color a partir de tono (0-360), saturación y luminosidad (0-1). */
+    fun hsl(hue: Float, saturation: Float, lightness: Float): Int {
+        val h = ((hue % 360f) + 360f) % 360f
+        val c = (1f - abs(2f * lightness - 1f)) * saturation
+        val x = c * (1f - abs((h / 60f) % 2f - 1f))
+        val m = lightness - c / 2f
+        val (r, g, b) = when {
+            h < 60f -> Triple(c, x, 0f)
+            h < 120f -> Triple(x, c, 0f)
+            h < 180f -> Triple(0f, c, x)
+            h < 240f -> Triple(0f, x, c)
+            h < 300f -> Triple(x, 0f, c)
+            else -> Triple(c, 0f, x)
+        }
+        fun to255(v: Float) = ((v + m) * 255f + 0.5f).toInt().coerceIn(0, 255)
+        return (0xFF shl 24) or (to255(r) shl 16) or (to255(g) shl 8) or to255(b)
+    }
+
     /** Texto sobre botones y zonas de color: blanco o negro puro, el de más contraste (siempre ≥ 4,5). */
     fun readableOn(background: Int): Int {
         val white = 0xFFFFFFFF.toInt()
@@ -51,25 +70,15 @@ object PaletteMath {
         }
         return result
     }
-
-    fun parseHex(text: String): Int? {
-        val clean = text.trim().removePrefix("#")
-        if (clean.length != 6) return null
-        val value = clean.toIntOrNull(16) ?: return null
-        return (0xFF shl 24) or value
-    }
-
-    fun toHex(argb: Int): String = "#%06X".format(argb and 0xFFFFFF)
 }
 
-/** Colores base de un tema: con estos dos y el modo se deriva todo el esquema. */
-data class PaletteSeed(val accent: Int, val background: Int, val dark: Boolean)
-
+/** Colores ya derivados de una paleta, listos para armar el esquema de Material. */
 data class PaletteColors(
     val primary: Int,
     val onPrimary: Int,
     val primaryContainer: Int,
     val onPrimaryContainer: Int,
+    val secondary: Int,
     val background: Int,
     val onBackground: Int,
     val surface: Int,
@@ -78,21 +87,23 @@ data class PaletteColors(
     val outlineVariant: Int,
 )
 
-fun derive(seed: PaletteSeed): PaletteColors {
-    val bg = seed.background
+/** Todo sale de los seis valores de la paleta: modo, fondo, tarjeta, acento y segundo acento. */
+fun derive(palette: Palette): PaletteColors {
+    val bg = palette.background
     val text = PaletteMath.textOn(bg)
-    val primary = PaletteMath.ensureContrast(seed.accent, bg, seed.dark)
-    val container = PaletteMath.mix(bg, primary, if (seed.dark) 0.30f else 0.18f)
+    val primary = PaletteMath.ensureContrast(palette.accent, bg, palette.dark)
+    val container = PaletteMath.mix(bg, primary, if (palette.dark) 0.30f else 0.18f)
     return PaletteColors(
         primary = primary,
         onPrimary = PaletteMath.readableOn(primary),
         primaryContainer = container,
         onPrimaryContainer = PaletteMath.readableOn(container),
+        secondary = PaletteMath.ensureContrast(palette.accent2, bg, palette.dark),
         background = bg,
         onBackground = text,
-        surface = PaletteMath.mix(bg, text, 0.06f),
-        surfaceVariant = PaletteMath.mix(bg, text, 0.14f),
-        onSurfaceVariant = PaletteMath.mix(text, bg, 0.30f),
+        surface = palette.card,
+        surfaceVariant = PaletteMath.mix(palette.card, text, 0.12f),
+        onSurfaceVariant = PaletteMath.mix(text, palette.card, 0.30f),
         outlineVariant = PaletteMath.mix(bg, text, 0.20f),
     )
 }

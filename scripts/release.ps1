@@ -31,4 +31,8 @@ $apk = "build/QuietRingtones-$Version.apk"
 New-Item -ItemType Directory -Force build | Out-Null
 Copy-Item app/build/outputs/apk/release/app-release.apk $apk -Force
 
-gh release create "v$Version" $apk --title "QuietRingtones $Version" --notes $Notes
+# The notes go through a file: quotes and line breaks inside --notes break in Windows PowerShell 5.1.
+$notesFile = Join-Path (Resolve-Path build) "release-notes-$Version.md"
+[IO.File]::WriteAllText($notesFile, $Notes, (New-Object System.Text.UTF8Encoding($false)))
+gh release create "v$Version" $apk --title "QuietRingtones $Version" --notes-file $notesFile
+if ($LASTEXITCODE -ne 0) { throw 'gh release create failed.' }

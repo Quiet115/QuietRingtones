@@ -1,8 +1,8 @@
 package com.quietringtones
 
 import android.app.Application
-import android.media.Ringtone
-import android.media.RingtoneManager
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.net.ConnectivityManager
 import android.net.Uri
 import androidx.annotation.StringRes
@@ -28,6 +28,7 @@ import com.quietringtones.ui.Appearance
 import com.quietringtones.ui.AppearanceStore
 import com.quietringtones.ui.Language
 import com.quietringtones.ui.LanguageStore
+import com.quietringtones.ui.playbackFraction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -69,7 +70,7 @@ data class UpdateUi(
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = QuietRingtones(AndroidSoundSystem(application), PrefsStore(application))
-    private var ringtone: Ringtone? = null
+    private var player: MediaPlayer? = null
     private var watchJob: Job? = null
 
     private val _state = MutableStateFlow(UiState())
@@ -198,6 +199,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     /** Identificador del sonido que se está escuchando, si hay alguno. */
     val playing: StateFlow<String?> = _playing
 
+    private val _progress = MutableStateFlow(0f)
+
+    /** Posición real de la reproducción (0 a 1); -1 si suena pero no se conoce la duración. */
+    val progress: StateFlow<Float> = _progress
+
     fun refresh() = launchIo { reload() }
 
     fun use(kind: SoundKind, selection: Selection) = launchIo {
@@ -238,28 +244,63 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Un toque escucha el sonido; otro toque sobre el mismo lo detiene. */
-    fun togglePreview(sound: Sound) {
+    fun togglePreview(kind: SoundKind, sound: Sound) {
         val wasPlaying = _playing.value == sound.id
         stopPreview()
         if (wasPlaying) return
-        val started = runCatching {
-            RingtoneManager.getRingtone(getApplication(), Uri.parse(sound.id))?.also { it.play() }
-        }.getOrNull() ?: return
-        ringtone = started
+        val usage = when (kind) {
+            SoundKind.RINGTONE -> AudioAttributes.USAGE_NOTIFICATION_RINGTONE
+            SoundKind.NOTIFICATION -> AudioAttributes.USAGE_NOTIFICATION
+            SoundKind.ALARM -> AudioAttributes.USAGE_ALARM
+        }
+        val next = MediaPlayer()
+        player = next
         _playing.value = sound.id
+        _progress.value = 0f
+        try {
+            next.setAudioAttributes(
+                AudioAttributes.Builder().setUsage(usage).setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build(),
+            )
+            next.setDataSource(getApplication<Application>(), Uri.parse(sound.id))
+            next.setOnCompletionListener { if (player === next) stopPreview() }
+            next.setOnErrorListener { _, _, _ ->
+                if (player === next) stopPreview()
+                true
+            }
+            next.setOnPreparedListener {
+                if (player !== next) return@setOnPreparedListener
+                it.start()
+                trackProgress(next)
+            }
+            next.prepareAsync()
+        } catch (e: Exception) {
+            stopPreview()
+        }
+    }
+
+    /** Sigue la posición real del reproductor, unas 30 veces por segundo, mientras suene. */
+    private fun trackProgress(active: MediaPlayer) {
+        watchJob?.cancel()
         watchJob = viewModelScope.launch {
-            delay(500)
-            while (started.isPlaying) delay(250)
-            if (ringtone === started) stopPreview()
+            while (player === active) {
+                val duration = runCatching { active.duration }.getOrDefault(-1)
+                val position = runCatching { active.currentPosition }.getOrDefault(0)
+                _progress.value = playbackFraction(position, duration)
+                delay(33)
+            }
         }
     }
 
     fun stopPreview() {
         watchJob?.cancel()
         watchJob = null
-        ringtone?.stop()
-        ringtone = null
+        player?.let { current ->
+            player = null
+            runCatching { current.stop() }
+            current.release()
+        }
         _playing.value = null
+        _progress.value = 0f
     }
 
     fun showError(error: Throwable) {

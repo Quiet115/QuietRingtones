@@ -120,6 +120,8 @@ class MainActivity : ComponentActivity() {
 private fun MainScreen(viewModel: AppViewModel) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val playing by viewModel.playing.collectAsStateWithLifecycle()
+    // Se lee al dibujar la onda, no al componer: el barrido no recompone la pantalla.
+    val progress = viewModel.progress.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val updates by viewModel.updates.collectAsStateWithLifecycle()
@@ -160,8 +162,9 @@ private fun MainScreen(viewModel: AppViewModel) {
                     kind = kind,
                     state = state,
                     playing = playing,
+                    progress = { progress.value },
                     onUse = viewModel::use,
-                    onTogglePreview = viewModel::togglePreview,
+                    onTogglePreview = { sound -> viewModel.togglePreview(kind, sound) },
                     onImport = {
                         importKind = kind
                         picker.launch(arrayOf("audio/*"))
@@ -275,6 +278,7 @@ private fun SoundsTab(
     kind: SoundKind,
     state: UiState,
     playing: String?,
+    progress: () -> Float,
     onUse: (SoundKind, Selection) -> Unit,
     onTogglePreview: (Sound) -> Unit,
     onImport: () -> Unit,
@@ -288,6 +292,7 @@ private fun SoundsTab(
                 kind = kind,
                 current = current,
                 playing = currentSound != null && playing == currentSound.id,
+                progress = progress,
                 onTogglePreview = { currentSound?.let(onTogglePreview) },
                 onImport = onImport,
             )
@@ -307,6 +312,7 @@ private fun SoundsTab(
                 sound = sound,
                 active = currentSound == sound,
                 playing = playing == sound.id,
+                progress = progress,
                 onTogglePreview = { onTogglePreview(sound) },
                 onUse = { onUse(kind, Selection.Chosen(sound)) },
             )
@@ -319,6 +325,7 @@ private fun NowPanel(
     kind: SoundKind,
     current: Selection?,
     playing: Boolean,
+    progress: () -> Float,
     onTogglePreview: () -> Unit,
     onImport: () -> Unit,
 ) {
@@ -344,7 +351,7 @@ private fun NowPanel(
             Waveform(
                 seed = sound?.id ?: "silencio",
                 lit = sound != null,
-                playing = playing,
+                progress = if (playing) progress else null,
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(56.dp),
             )
             Row(
@@ -372,6 +379,7 @@ private fun SoundRow(
     sound: Sound,
     active: Boolean,
     playing: Boolean,
+    progress: () -> Float,
     onTogglePreview: () -> Unit,
     onUse: () -> Unit,
 ) {
@@ -397,7 +405,7 @@ private fun SoundRow(
                 Waveform(
                     seed = sound.id,
                     lit = active,
-                    playing = playing,
+                    progress = if (playing) progress else null,
                     modifier = Modifier.fillMaxWidth().padding(top = 6.dp).height(18.dp),
                 )
             }

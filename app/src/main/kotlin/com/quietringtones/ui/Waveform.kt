@@ -1,11 +1,5 @@
 package com.quietringtones.ui
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -14,7 +8,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,24 +40,33 @@ private fun barHeights(seed: String): List<Float> {
     }
 }
 
+/**
+ * [progress] es la posición real de la reproducción (0 a 1), o null si no suena. Se lee al dibujar,
+ * no al componer, para que el barrido siga al audio sin recomponer la pantalla en cada fotograma.
+ * Un valor negativo significa "suena, pero no se conoce la duración": se ilumina entera.
+ */
 @Composable
 fun Waveform(
     seed: String,
     lit: Boolean,
-    playing: Boolean,
+    progress: (() -> Float)?,
     modifier: Modifier = Modifier,
 ) {
     val heights = remember(seed) { barHeights(seed) }
-    val sweep = if (playing) sweepProgress() else 0f
     val accent = MaterialTheme.colorScheme.primary
     val accent2 = MaterialTheme.colorScheme.tertiary
     val off = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
 
     Canvas(modifier) {
         val slot = size.width / BARS
+        val position = progress?.invoke()
         heights.forEachIndexed { i, h ->
             val t = i / (BARS - 1f)
-            val isOn = if (playing) t <= sweep else lit
+            val isOn = when {
+                position == null -> lit
+                position < 0f -> true
+                else -> t <= position
+            }
             val x = slot * i + slot / 2
             val half = h * size.height / 2
             drawLine(
@@ -76,19 +78,6 @@ fun Waveform(
             )
         }
     }
-}
-
-/** El barrido solo existe mientras suena: es la respuesta al toque en reproducir. */
-@Composable
-private fun sweepProgress(): Float {
-    val transition = rememberInfiniteTransition(label = "sweep")
-    val value by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(1800, easing = LinearEasing), RepeatMode.Restart),
-        label = "sweep",
-    )
-    return value
 }
 
 @Composable

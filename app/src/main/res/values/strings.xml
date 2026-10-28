@@ -11,6 +11,8 @@
     <string name="kind_notification">Notificación</string>
     <string name="kind_alarm">Alarma</string>
 
+    <string name="donate">Buy me a buñuelo</string>
+
     <string name="permission_needed">Para cambiar los sonidos del sistema, Android necesita que actives «Modificar ajustes del sistema» para esta app.</string>
     <string name="permission_grant">Conceder permiso</string>
 

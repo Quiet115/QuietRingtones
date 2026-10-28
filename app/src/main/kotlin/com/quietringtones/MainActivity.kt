@@ -111,6 +111,7 @@ private fun MainScreen(viewModel: AppViewModel) {
                     text = { Text(stringResource(R.string.tab_profiles)) },
                 )
             }
+            DonateButton()
             if (!state.canModify) PermissionBanner()
             val kind = SoundKind.entries.getOrNull(tab)
             when {
@@ -134,6 +135,20 @@ private fun MainScreen(viewModel: AppViewModel) {
         }
     }
 }
+
+@Composable
+private fun DonateButton() {
+    val context = LocalContext.current
+    OutlinedButton(
+        onClick = {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(DONATION_URL))
+            runCatching { context.startActivity(intent) }
+        },
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+    ) { Text(stringResource(R.string.donate)) }
+}
+
+private const val DONATION_URL = "https://ko-fi.com/quiet115"
 
 @Composable
 private fun PermissionBanner() {

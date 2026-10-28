@@ -33,7 +33,7 @@ class QuietRingtones(
     fun saveProfile(name: String, selections: Map<SoundKind, Selection>): Profile {
         val clean = name.trim()
         require(clean.isNotEmpty()) { "El nombre del perfil no puede estar vacío" }
-        require(!clean.equals(ORIGINAL_NAME, ignoreCase = true)) { "«$ORIGINAL_NAME» es un nombre reservado" }
+        require(RESERVED_NAMES.none { it.equals(clean, ignoreCase = true) }) { "\"$clean\" is a reserved name" }
         val existing = store.loadProfiles()
         val id = existing.firstOrNull { it.name.equals(clean, ignoreCase = true) }?.id ?: newId()
         val profile = Profile(id, clean, selections)
@@ -65,6 +65,9 @@ class QuietRingtones(
         return Outcome.APPLIED
     }
 
+    /** Guarda el Estado original en cuanto se puede (al abrir la app), sin esperar al primer cambio. */
+    fun ensureOriginal() = captureOriginal()
+
     /** Antes de cualquier cambio, captura lo que falte del Estado original; lo ya capturado no se toca. */
     private fun captureOriginal() {
         val original = store.loadOriginal()
@@ -75,6 +78,9 @@ class QuietRingtones(
 
     companion object {
         const val ORIGINAL_ID = "original"
-        const val ORIGINAL_NAME = "Estado original"
+        const val ORIGINAL_NAME = "Original state"
+
+        /** El nombre del Estado original en cada idioma de la app: ningún perfil propio puede usarlos. */
+        val RESERVED_NAMES = setOf(ORIGINAL_NAME, "Estado original")
     }
 }

@@ -1,0 +1,71 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">QuietRingtones</string>
+
+    <string name="tab_calls">Llamadas</string>
+    <string name="tab_notifications">Notificaciones</string>
+    <string name="tab_alarms">Alarmas</string>
+    <string name="tab_profiles">Perfiles</string>
+    <string name="tab_settings">Configuración</string>
+
+    <string name="kind_ringtone">Llamadas</string>
+    <string name="kind_notification">Notificaciones</string>
+    <string name="kind_alarm">Alarmas</string>
+    <string name="current_ringtone">Tono de llamada actual</string>
+    <string name="current_notification">Sonido de notificación actual</string>
+    <string name="current_alarm">Sonido de alarma actual</string>
+
+    <string name="donate">Buy me a buñuelo</string>
+
+    <string name="permission_needed">Android necesita tu permiso para cambiar los sonidos del sistema.</string>
+    <string name="permission_grant">Dar permiso</string>
+
+    <string name="unnamed_sound">Sonido sin nombre</string>
+    <string name="silent">Silencio</string>
+    <string name="no_sounds">Aún no hay sonidos aquí. Importa un audio para empezar.</string>
+    <string name="use">Usar</string>
+    <string name="active">En uso</string>
+    <string name="preview">Escuchar</string>
+    <string name="stop">Parar</string>
+    <string name="import_audio">Importar audio</string>
+
+    <string name="profile_name_hint">Nombre del perfil</string>
+    <string name="profile_name_help">Guarda los tres sonidos que suenan ahora.</string>
+    <string name="save_current_profile">Guardar perfil</string>
+    <string name="no_profiles">Aún no tienes perfiles propios. Elige tus sonidos y guárdalos con un nombre.</string>
+    <string name="profile_original">Estado original</string>
+    <string name="original_help">Tus sonidos de antes de usar la app</string>
+    <string name="apply">Aplicar</string>
+    <string name="delete">Borrar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="delete_title">¿Borrar «%1$s»?</string>
+    <string name="delete_body">Tus sonidos actuales no cambian.</string>
+
+    <string name="settings_appearance">Aspecto</string>
+    <string name="settings_language">Idioma</string>
+    <string name="language_help">Elige el idioma de la app.</string>
+    <string name="language_english">English</string>
+    <string name="language_spanish">Español</string>
+
+    <string name="palette_obsidiana">Obsidiana</string>
+    <string name="palette_obsidiana_desc">Negro de vidrio volcánico con acento hielo. Es la de serie.</string>
+    <string name="palette_fieltro">Fieltro</string>
+    <string name="palette_fieltro_desc">Gris claro con acento ultramar.</string>
+    <string name="palette_custom">Personalizada</string>
+    <string name="palette_custom_desc">Elige tu acento y tu fondo.</string>
+    <string name="accent_color">Color de acento</string>
+    <string name="background_color">Fondo</string>
+    <string name="hex_label">Código de color</string>
+    <string name="hex_error">Escribe seis cifras, por ejemplo #3B4FE0</string>
+    <string name="dark_mode">Modo oscuro</string>
+
+    <string name="msg_applied">En uso: %1$s</string>
+    <string name="msg_needs_permission">Falta el permiso para cambiar los sonidos del sistema</string>
+    <string name="msg_imported">Importado y en uso: %1$s</string>
+    <string name="msg_imported_only">Importado: %1$s. Da el permiso para usarlo.</string>
+    <string name="msg_profile_saved">Perfil guardado: %1$s</string>
+    <string name="msg_profile_applied">Perfil aplicado</string>
+    <string name="msg_profile_fallback">Perfil aplicado. %1$s sonido(s) ya no existían y se sustituyeron u omitieron.</string>
+    <string name="msg_profile_missing">Ese perfil ya no existe</string>
+    <string name="msg_error">No se pudo completar: %1$s</string>
+</resources>

@@ -101,6 +101,21 @@ class QuietRingtonesTest {
     }
 
     @Test
+    fun `ensuring the original captures every kind once and never overwrites it`() {
+        val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
+        val store = FakeStore()
+        val app = app(system, store)
+
+        app.ensureOriginal()
+        system.apply(SoundKind.RINGTONE, Selection.Chosen(b))
+        app.ensureOriginal()
+
+        assertEquals(SoundKind.entries.toSet(), store.loadOriginal().keys)
+        assertEquals(Selection.Chosen(a), store.loadOriginal().getValue(SoundKind.RINGTONE))
+        assertEquals(QuietRingtones.ORIGINAL_ID, app.profiles().first().id)
+    }
+
+    @Test
     fun `the original shows up as the first profile`() {
         val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
         val app = app(system)
@@ -151,6 +166,7 @@ class QuietRingtonesTest {
 
         assertEquals(QuietRingtones.ORIGINAL_ID, app.profiles().first().id)
         assertFailsWith<IllegalArgumentException> { app.saveProfile(" estado ORIGINAL ", emptyMap()) }
+        assertFailsWith<IllegalArgumentException> { app.saveProfile("original STATE", emptyMap()) }
     }
 
     @Test

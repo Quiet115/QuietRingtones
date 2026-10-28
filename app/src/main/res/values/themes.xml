@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Obsidiana, la paleta de serie, es oscura: la ventana arranca oscura para que no haya destello. -->
+    <style name="Theme.QuietRingtones" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0D0F12</item>
+    </style>
+</resources>

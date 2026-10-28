@@ -31,6 +31,15 @@ class StoreCodecTest {
     }
 
     @Test
+    fun `older saved ids are normalized when read`() {
+        val old = """{"RINGTONE":{"id":"content://0@media/internal/audio/media/16?title=Luz&canonical=1","name":"Luz"}}"""
+
+        val decoded = StoreCodec.decodeSelections(old).getValue(SoundKind.RINGTONE) as Selection.Chosen
+
+        assertEquals("content://media/internal/audio/media/16", decoded.sound.id)
+    }
+
+    @Test
     fun `missing data decodes to empty`() {
         assertTrue(StoreCodec.decodeSelections(null).isEmpty())
         assertTrue(StoreCodec.decodeProfiles("").isEmpty())

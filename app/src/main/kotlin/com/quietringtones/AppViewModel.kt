@@ -15,7 +15,13 @@ import com.quietringtones.core.QuietRingtones
 import com.quietringtones.core.Selection
 import com.quietringtones.core.Sound
 import com.quietringtones.core.SoundKind
+import com.quietringtones.ui.Appearance
+import com.quietringtones.ui.AppearanceStore
+import com.quietringtones.ui.Language
+import com.quietringtones.ui.LanguageStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -35,14 +41,39 @@ data class UiState(
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = QuietRingtones(AndroidSoundSystem(application), PrefsStore(application))
     private var ringtone: Ringtone? = null
+    private var watchJob: Job? = null
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state
 
+    private val appearanceStore = AppearanceStore(application)
+    private val _appearance = MutableStateFlow(appearanceStore.load())
+    val appearance: StateFlow<Appearance> = _appearance
+
+    fun setAppearance(appearance: Appearance) {
+        _appearance.value = appearance
+        appearanceStore.save(appearance)
+    }
+
+    private val languageStore = LanguageStore(application)
+    private val _language = MutableStateFlow(languageStore.load())
+    val language: StateFlow<Language> = _language
+
+    fun setLanguage(language: Language) {
+        languageStore.save(language)
+        _language.value = language
+    }
+
+    private val _playing = MutableStateFlow<String?>(null)
+
+    /** Identificador del sonido que se está escuchando, si hay alguno. */
+    val playing: StateFlow<String?> = _playing
+
     fun refresh() = launchIo { reload() }
 
     fun use(kind: SoundKind, selection: Selection) = launchIo {
-        report(app.apply(kind, selection)) { Message(R.string.msg_applied) }
+        val name = (selection as? Selection.Chosen)?.sound?.name.orEmpty()
+        report(app.apply(kind, selection)) { Message(R.string.msg_applied, name) }
     }
 
     fun importAndUse(kind: SoundKind, source: Uri, displayName: String) = launchIo {
@@ -77,16 +108,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         reload()
     }
 
-    fun preview(sound: Sound) {
+    /** Un toque escucha el sonido; otro toque sobre el mismo lo detiene. */
+    fun togglePreview(sound: Sound) {
+        val wasPlaying = _playing.value == sound.id
         stopPreview()
-        ringtone = runCatching {
+        if (wasPlaying) return
+        val started = runCatching {
             RingtoneManager.getRingtone(getApplication(), Uri.parse(sound.id))?.also { it.play() }
-        }.getOrNull()
+        }.getOrNull() ?: return
+        ringtone = started
+        _playing.value = sound.id
+        watchJob = viewModelScope.launch {
+            delay(500)
+            while (started.isPlaying) delay(250)
+            if (ringtone === started) stopPreview()
+        }
     }
 
     fun stopPreview() {
+        watchJob?.cancel()
+        watchJob = null
         ringtone?.stop()
         ringtone = null
+        _playing.value = null
     }
 
     fun showError(error: Throwable) {
@@ -106,6 +150,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun reload(message: Message? = null) {
+        app.ensureOriginal()
         val kinds = SoundKind.entries
         _state.value = UiState(
             canModify = app.canModify(),

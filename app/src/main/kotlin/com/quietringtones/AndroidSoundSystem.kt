@@ -1,4 +1,4 @@
-package com.quietringtones
+﻿package com.quietringtones
 
 import android.content.ContentValues
 import android.content.Context
@@ -11,6 +11,8 @@ import com.quietringtones.core.Selection
 import com.quietringtones.core.Sound
 import com.quietringtones.core.SoundKind
 import com.quietringtones.core.SoundSystem
+import com.quietringtones.ui.LanguageStore
+import com.quietringtones.ui.withLanguage
 
 class AndroidSoundSystem(private val context: Context) : SoundSystem {
 
@@ -19,7 +21,7 @@ class AndroidSoundSystem(private val context: Context) : SoundSystem {
     override fun current(kind: SoundKind): Selection {
         val uri = RingtoneManager.getActualDefaultRingtoneUri(context, kind.ringtoneType())
             ?: return Selection.Silent
-        return Selection.Chosen(Sound(uri.toString(), titleOf(uri)))
+        return Selection.Chosen(Sound(SoundId.normalize(uri.toString()), titleOf(uri)))
     }
 
     override fun available(kind: SoundKind): List<Sound> {
@@ -29,7 +31,7 @@ class AndroidSoundSystem(private val context: Context) : SoundSystem {
             while (cursor.moveToNext()) {
                 val title = cursor.getString(RingtoneManager.TITLE_COLUMN_INDEX).orEmpty()
                 val uri = manager.getRingtoneUri(cursor.position)
-                sounds += Sound(uri.toString(), title.ifBlank { FALLBACK_NAME })
+                sounds += Sound(SoundId.normalize(uri.toString()), title.ifBlank { fallbackName() })
             }
         }
         return sounds
@@ -73,7 +75,7 @@ class AndroidSoundSystem(private val context: Context) : SoundSystem {
         runCatching { RingtoneManager.getRingtone(context, uri)?.getTitle(context) }
             .getOrNull()
             ?.takeIf { it.isNotBlank() }
-            ?: FALLBACK_NAME
+            ?: fallbackName()
 
     private fun SoundKind.ringtoneType() = when (this) {
         SoundKind.RINGTONE -> RingtoneManager.TYPE_RINGTONE
@@ -87,7 +89,7 @@ class AndroidSoundSystem(private val context: Context) : SoundSystem {
         SoundKind.ALARM -> Environment.DIRECTORY_ALARMS
     }
 
-    private companion object {
-        const val FALLBACK_NAME = "Sonido sin nombre"
-    }
+    private fun fallbackName(): String =
+        context.withLanguage(LanguageStore(context).load()).getString(R.string.unnamed_sound)
 }
+

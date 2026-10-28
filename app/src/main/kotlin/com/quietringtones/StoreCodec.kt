@@ -59,7 +59,7 @@ object StoreCodec {
             kind to if (item.optBoolean("silent")) {
                 Selection.Silent
             } else {
-                Selection.Chosen(Sound(item.getString("id"), item.getString("name")))
+                Selection.Chosen(Sound(SoundId.normalize(item.getString("id")), item.getString("name")))
             }
         }.toMap()
 }

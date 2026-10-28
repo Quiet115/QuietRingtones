@@ -1,4 +1,4 @@
-﻿package com.quietringtones.core
+package com.quietringtones.core
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -190,6 +190,54 @@ class QuietRingtonesTest {
         assertEquals("mi tono", imported.name)
     }
 
+    @Test
+    fun `imported sounds are listed first, newest first, and the rest follow`() {
+        val system = system()
+        val app = app(system)
+        val first = app.importSound("content://picker/1", "uno", SoundKind.RINGTONE)
+        val second = app.importSound("content://picker/2", "dos", SoundKind.RINGTONE)
+
+        val catalog = app.catalog(SoundKind.RINGTONE)
+
+        assertEquals(listOf(second, first), catalog.yours)
+        assertEquals(listOf(a, b, c), catalog.system)
+        assertEquals(listOf(second, first, a, b, c), app.available(SoundKind.RINGTONE))
+    }
+
+    @Test
+    fun `an import stays first for that user across sessions`() {
+        val system = system()
+        val store = FakeStore()
+        val imported = app(system, store).importSound("content://picker/1", "mio", SoundKind.NOTIFICATION)
+
+        val reopened = app(system, store)
+
+        assertEquals(listOf(imported), reopened.catalog(SoundKind.NOTIFICATION).yours)
+        assertTrue(reopened.catalog(SoundKind.RINGTONE).yours.isEmpty())
+    }
+
+    @Test
+    fun `importing the same file again moves it to the front without duplicating it`() {
+        val system = system()
+        val app = app(system)
+        val one = app.importSound("content://picker/1", "uno", SoundKind.ALARM)
+        app.importSound("content://picker/2", "dos", SoundKind.ALARM)
+        system.remove(SoundKind.ALARM, one)
+        val again = app.importSound("content://picker/1", "uno", SoundKind.ALARM)
+
+        assertEquals(1, app.catalog(SoundKind.ALARM).yours.count { it == again })
+        assertEquals(again, app.catalog(SoundKind.ALARM).yours.first())
+    }
+
+    @Test
+    fun `an imported file that no longer exists is not listed`() {
+        val system = system()
+        val app = app(system)
+        val gone = app.importSound("content://picker/1", "borrado", SoundKind.RINGTONE)
+        system.remove(SoundKind.RINGTONE, gone)
+
+        assertTrue(app.catalog(SoundKind.RINGTONE).yours.isEmpty())
+    }
     // --- Perfiles ---------------------------------------------------------------
 
     @Test

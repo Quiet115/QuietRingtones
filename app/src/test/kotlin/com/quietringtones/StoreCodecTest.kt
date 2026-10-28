@@ -40,6 +40,18 @@ class StoreCodecTest {
     }
 
     @Test
+    fun `imported sounds round trip in order, without duplicates`() {
+        val imported = mapOf(
+            SoundKind.RINGTONE to listOf("content://media/external/audio/media/9", "content://media/external/audio/media/3"),
+            SoundKind.ALARM to listOf("content://media/external/audio/media/5"),
+        )
+
+        assertEquals(imported, StoreCodec.decodeImported(StoreCodec.encodeImported(imported)))
+        assertTrue(StoreCodec.decodeImported("not json").isEmpty())
+        assertTrue(StoreCodec.decodeImported(null).isEmpty())
+    }
+
+    @Test
     fun `missing data decodes to empty`() {
         assertTrue(StoreCodec.decodeSelections(null).isEmpty())
         assertTrue(StoreCodec.decodeProfiles("").isEmpty())

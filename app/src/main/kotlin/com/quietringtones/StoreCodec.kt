@@ -37,6 +37,27 @@ object StoreCodec {
         }
     }
 
+    fun encodeImported(imported: Map<SoundKind, List<String>>): String {
+        val json = JSONObject()
+        imported.forEach { (kind, ids) ->
+            val array = JSONArray()
+            ids.forEach { array.put(it) }
+            json.put(kind.name, array)
+        }
+        return json.toString()
+    }
+
+    fun decodeImported(text: String?): Map<SoundKind, List<String>> {
+        if (text.isNullOrBlank()) return emptyMap()
+        return runCatching {
+            val json = JSONObject(text)
+            SoundKind.entries.mapNotNull { kind ->
+                val array = json.optJSONArray(kind.name) ?: return@mapNotNull null
+                kind to (0 until array.length()).map { SoundId.normalize(array.getString(it)) }.distinct()
+            }.toMap()
+        }.getOrDefault(emptyMap())
+    }
+
     private fun selectionsJson(selections: Map<SoundKind, Selection>): JSONObject {
         val json = JSONObject()
         selections.forEach { (kind, selection) ->

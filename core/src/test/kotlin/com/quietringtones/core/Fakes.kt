@@ -33,11 +33,14 @@ class FakeSoundSystem(
 class FakeStore : Store {
     private var original: Map<SoundKind, Selection> = emptyMap()
     private var profiles: List<Profile> = emptyList()
+    private var imported: Map<SoundKind, List<String>> = emptyMap()
 
     override fun loadOriginal() = original
     override fun saveOriginal(original: Map<SoundKind, Selection>) { this.original = original }
     override fun loadProfiles() = profiles
     override fun saveProfiles(profiles: List<Profile>) { this.profiles = profiles }
+    override fun loadImported() = imported
+    override fun saveImported(imported: Map<SoundKind, List<String>>) { this.imported = imported }
 }
 
 fun sound(name: String) = Sound("content://sys/$name", name)

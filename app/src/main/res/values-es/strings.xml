@@ -94,4 +94,18 @@
     <string name="try_again">Reintentar</string>
     <string name="whats_new">Novedades</string>
     <string name="msg_update_available">Hay una versión nueva (%1$s). Está en Configuración, en Actualizaciones.</string>
+
+    <string name="volume_ringtone">Volumen de llamadas</string>
+    <string name="volume_notification">Volumen de notificaciones</string>
+    <string name="volume_alarm">Volumen de alarmas</string>
+    <string name="volume_percent">%1$d%%</string>
+    <string name="advice_muted">El volumen está en cero. Súbelo para oír tus sonidos.</string>
+    <string name="advice_low">El volumen está bajo. Súbelo para oír bien tus sonidos.</string>
+    <string name="advice_silent">Tu teléfono está en silencio. No oirás llamadas ni notificaciones.</string>
+    <string name="advice_vibrate">Tu teléfono está en vibración. No oirás llamadas ni notificaciones.</string>
+    <string name="advice_dnd">No molestar está bloqueando este sonido.</string>
+    <string name="msg_volume_blocked">Android no deja cambiar este volumen ahora. Revisa No molestar.</string>
+
+    <string name="your_audio">Tu audio</string>
+    <string name="phone_sounds">Sonidos del teléfono</string>
 </resources>

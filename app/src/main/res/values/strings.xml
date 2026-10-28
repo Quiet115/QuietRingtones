@@ -94,4 +94,18 @@
     <string name="try_again">Try again</string>
     <string name="whats_new">What\'s new</string>
     <string name="msg_update_available">Version %1$s is available. Open Settings and go to Updates.</string>
+
+    <string name="volume_ringtone">Ringtone volume</string>
+    <string name="volume_notification">Notification volume</string>
+    <string name="volume_alarm">Alarm volume</string>
+    <string name="volume_percent">%1$d%%</string>
+    <string name="advice_muted">Volume is off. Raise it to hear your sounds.</string>
+    <string name="advice_low">Volume is low. Raise it to hear your sounds clearly.</string>
+    <string name="advice_silent">Your phone is on silent. You won\'t hear calls or notifications.</string>
+    <string name="advice_vibrate">Your phone is on vibrate. You won\'t hear calls or notifications.</string>
+    <string name="advice_dnd">Do Not Disturb is blocking this sound.</string>
+    <string name="msg_volume_blocked">Android won\'t let this volume change right now. Check Do Not Disturb.</string>
+
+    <string name="your_audio">Your audio</string>
+    <string name="phone_sounds">Phone sounds</string>
 </resources>

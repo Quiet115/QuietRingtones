@@ -21,8 +21,8 @@ android {
         applicationId = "com.quietringtones"
         minSdk = 29
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0.0"
+        versionCode = 5
+        versionName = "1.0.2"
     }
 
     signingConfigs {

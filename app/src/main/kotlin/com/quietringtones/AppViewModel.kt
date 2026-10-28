@@ -17,12 +17,16 @@ import com.quietringtones.core.Release
 import com.quietringtones.core.UpdateCheck
 import com.quietringtones.core.Updater
 import com.quietringtones.core.Version
+import com.quietringtones.core.VolumeAdvice
+import com.quietringtones.core.VolumeAdvisor
+import com.quietringtones.ui.messageRes
 import com.quietringtones.updates.GitHubReleases
 import com.quietringtones.updates.UpdateDownloader
 import com.quietringtones.updates.UpdatePrefs
 import java.io.File
 import com.quietringtones.core.Selection
 import com.quietringtones.core.Sound
+import com.quietringtones.core.SoundCatalog
 import com.quietringtones.core.SoundKind
 import com.quietringtones.ui.Appearance
 import com.quietringtones.ui.AppearanceStore
@@ -43,7 +47,7 @@ data class Message(@StringRes val res: Int, val arg: String? = null)
 data class UiState(
     val canModify: Boolean = false,
     val current: Map<SoundKind, Selection> = emptyMap(),
-    val available: Map<SoundKind, List<Sound>> = emptyMap(),
+    val catalog: Map<SoundKind, SoundCatalog> = emptyMap(),
     val profiles: List<Profile> = emptyList(),
     val message: Message? = null,
 )
@@ -68,6 +72,8 @@ data class UpdateUi(
     val installedVersion: String = "",
 )
 
+data class VolumeUi(val index: Int, val min: Int, val max: Int, val advice: VolumeAdvice)
+
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val app = QuietRingtones(AndroidSoundSystem(application), PrefsStore(application))
     private var player: MediaPlayer? = null
@@ -83,6 +89,47 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun setAppearance(appearance: Appearance) {
         _appearance.value = appearance
         appearanceStore.save(appearance)
+    }
+
+    // --- Volumen ------------------------------------------------------------------
+
+    private val volumes = AndroidVolumes(application)
+    private var volumeJob: Job? = null
+    private val _volumeState = MutableStateFlow<Map<SoundKind, VolumeUi>>(emptyMap())
+    val volume: StateFlow<Map<SoundKind, VolumeUi>> = _volumeState
+
+    private fun readVolumes(): Map<SoundKind, VolumeUi> {
+        val ringer = volumes.ringerMode()
+        val dnd = volumes.doNotDisturb()
+        return SoundKind.entries.associateWith { kind ->
+            val v = volumes.volume(kind)
+            VolumeUi(v.index, volumes.minimum(kind), v.max, VolumeAdvisor.advise(kind, v, ringer, dnd))
+        }
+    }
+
+    /** Mientras la app está visible, vigila el volumen: también cambia con los botones del teléfono. */
+    fun startVolumeWatch() {
+        if (volumeJob != null) return
+        volumeJob = viewModelScope.launch {
+            while (true) {
+                _volumeState.value = readVolumes()
+                delay(400)
+            }
+        }
+    }
+
+    fun stopVolumeWatch() {
+        volumeJob?.cancel()
+        volumeJob = null
+    }
+
+    fun setVolume(kind: SoundKind, index: Int) {
+        try {
+            volumes.set(kind, index)
+        } catch (e: SecurityException) {
+            _state.update { it.copy(message = Message(R.string.msg_volume_blocked)) }
+        }
+        _volumeState.value = readVolumes()
     }
 
     // --- Actualizaciones --------------------------------------------------------
@@ -248,6 +295,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val wasPlaying = _playing.value == sound.id
         stopPreview()
         if (wasPlaying) return
+        val advice = readVolumes().getValue(kind).advice
+        if (advice != VolumeAdvice.OK && advice != VolumeAdvice.LOW) {
+            _state.update { it.copy(message = Message(advice.messageRes())) }
+        }
         val usage = when (kind) {
             SoundKind.RINGTONE -> AudioAttributes.USAGE_NOTIFICATION_RINGTONE
             SoundKind.NOTIFICATION -> AudioAttributes.USAGE_NOTIFICATION
@@ -325,7 +376,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _state.value = UiState(
             canModify = app.canModify(),
             current = app.current(),
-            available = kinds.associateWith { app.available(it) },
+            catalog = kinds.associateWith { app.catalog(it) },
             profiles = app.profiles(),
             message = message,
         )

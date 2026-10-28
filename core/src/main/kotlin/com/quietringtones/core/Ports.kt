@@ -17,4 +17,8 @@ interface Store {
     fun saveOriginal(original: Map<SoundKind, Selection>)
     fun loadProfiles(): List<Profile>
     fun saveProfiles(profiles: List<Profile>)
+
+    /** Sonidos que el usuario importó, por tipo y con el más reciente primero. */
+    fun loadImported(): Map<SoundKind, List<String>>
+    fun saveImported(imported: Map<SoundKind, List<String>>)
 }

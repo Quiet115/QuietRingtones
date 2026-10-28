@@ -20,6 +20,11 @@ sealed interface Selection {
 
 data class Profile(val id: String, val name: String, val selections: Map<SoundKind, Selection>)
 
+/** Sonidos disponibles de un tipo: primero los que importó el usuario, siempre, y luego los del teléfono. */
+data class SoundCatalog(val yours: List<Sound>, val system: List<Sound>) {
+    val all: List<Sound> get() = yours + system
+}
+
 sealed interface ApplyResult {
     data object Applied : ApplyResult
     data object NeedsPermission : ApplyResult

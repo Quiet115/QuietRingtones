@@ -11,10 +11,25 @@ class QuietRingtones(
 
     fun current(): Map<SoundKind, Selection> = SoundKind.entries.associateWith { system.current(it) }
 
-    fun available(kind: SoundKind): List<Sound> = system.available(kind)
+    fun available(kind: SoundKind): List<Sound> = catalog(kind).all
 
-    fun importSound(source: String, displayName: String, kind: SoundKind): Sound =
-        system.importFile(source, displayName, kind)
+    /** Los audios importados van siempre al inicio, el más reciente primero; si el archivo ya no existe, no salen. */
+    fun catalog(kind: SoundKind): SoundCatalog {
+        val importedIds = store.loadImported()[kind].orEmpty()
+        val available = system.available(kind)
+        val byId = available.associateBy { it.id }
+        return SoundCatalog(
+            yours = importedIds.mapNotNull { byId[it] },
+            system = available.filter { it.id !in importedIds },
+        )
+    }
+
+    fun importSound(source: String, displayName: String, kind: SoundKind): Sound {
+        val sound = system.importFile(source, displayName, kind)
+        val imported = store.loadImported()
+        store.saveImported(imported + (kind to (listOf(sound.id) + imported[kind].orEmpty().filter { it != sound.id })))
+        return sound
+    }
 
     fun apply(kind: SoundKind, selection: Selection): ApplyResult {
         if (!system.canModify()) return ApplyResult.NeedsPermission

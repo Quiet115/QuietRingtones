@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,6 +37,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.ScrollableTabRow
@@ -69,6 +72,7 @@ import com.quietringtones.core.Profile
 import com.quietringtones.core.QuietRingtones
 import com.quietringtones.core.Selection
 import com.quietringtones.core.Sound
+import com.quietringtones.core.SoundCatalog
 import com.quietringtones.core.SoundKind
 import com.quietringtones.ui.CheckMark
 import com.quietringtones.ui.Language
@@ -78,6 +82,7 @@ import com.quietringtones.ui.withLanguage
 import com.quietringtones.updates.UpdatesTab
 import com.quietringtones.ui.PlayStopButton
 import com.quietringtones.ui.QuietTheme
+import com.quietringtones.ui.VolumeControl
 import com.quietringtones.ui.Waveform
 import com.quietringtones.ui.donateColors
 import android.graphics.Color
@@ -110,9 +115,15 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        viewModel.startVolumeWatch()
+    }
+
     override fun onStop() {
         super.onStop()
         viewModel.stopPreview()
+        viewModel.stopVolumeWatch()
     }
 }
 
@@ -122,6 +133,7 @@ private fun MainScreen(viewModel: AppViewModel) {
     val playing by viewModel.playing.collectAsStateWithLifecycle()
     // Se lee al dibujar la onda, no al componer: el barrido no recompone la pantalla.
     val progress = viewModel.progress.collectAsStateWithLifecycle()
+    val volumes by viewModel.volume.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val updates by viewModel.updates.collectAsStateWithLifecycle()
@@ -163,6 +175,8 @@ private fun MainScreen(viewModel: AppViewModel) {
                     state = state,
                     playing = playing,
                     progress = { progress.value },
+                    volume = volumes[kind],
+                    onVolume = { viewModel.setVolume(kind, it) },
                     onUse = viewModel::use,
                     onTogglePreview = { sound -> viewModel.togglePreview(kind, sound) },
                     onImport = {
@@ -279,13 +293,15 @@ private fun SoundsTab(
     state: UiState,
     playing: String?,
     progress: () -> Float,
+    volume: VolumeUi?,
+    onVolume: (Int) -> Unit,
     onUse: (SoundKind, Selection) -> Unit,
     onTogglePreview: (Sound) -> Unit,
     onImport: () -> Unit,
 ) {
     val current = state.current[kind]
     val currentSound = (current as? Selection.Chosen)?.sound
-    val sounds = state.available[kind].orEmpty()
+    val catalog = state.catalog[kind] ?: SoundCatalog(emptyList(), emptyList())
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item(key = "now") {
             NowPanel(
@@ -293,11 +309,18 @@ private fun SoundsTab(
                 current = current,
                 playing = currentSound != null && playing == currentSound.id,
                 progress = progress,
+                volume = volume,
+                onVolume = onVolume,
                 onTogglePreview = { currentSound?.let(onTogglePreview) },
-                onImport = onImport,
             )
         }
-        if (sounds.isEmpty()) {
+        item(key = "import") {
+            OutlinedButton(
+                onClick = onImport,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
+            ) { Text(stringResource(R.string.import_audio)) }
+        }
+        if (catalog.all.isEmpty()) {
             item(key = "empty") {
                 Text(
                     stringResource(R.string.no_sounds),
@@ -307,17 +330,45 @@ private fun SoundsTab(
                 )
             }
         }
-        items(sounds, key = { it.id }) { sound ->
-            SoundRow(
-                sound = sound,
-                active = currentSound == sound,
-                playing = playing == sound.id,
-                progress = progress,
-                onTogglePreview = { onTogglePreview(sound) },
-                onUse = { onUse(kind, Selection.Chosen(sound)) },
-            )
+        if (catalog.yours.isNotEmpty()) {
+            item(key = "yours-header") { SectionLabel(stringResource(R.string.your_audio)) }
+            soundRows(catalog.yours, "yours", kind, currentSound, playing, progress, onUse, onTogglePreview)
+            item(key = "phone-header") { SectionLabel(stringResource(R.string.phone_sounds)) }
         }
+        soundRows(catalog.system, "phone", kind, currentSound, playing, progress, onUse, onTogglePreview)
     }
+}
+
+private fun LazyListScope.soundRows(
+    sounds: List<Sound>,
+    keyPrefix: String,
+    kind: SoundKind,
+    currentSound: Sound?,
+    playing: String?,
+    progress: () -> Float,
+    onUse: (SoundKind, Selection) -> Unit,
+    onTogglePreview: (Sound) -> Unit,
+) {
+    items(sounds, key = { "$keyPrefix-${it.id}" }) { sound ->
+        SoundRow(
+            sound = sound,
+            active = currentSound == sound,
+            playing = playing == sound.id,
+            progress = progress,
+            onTogglePreview = { onTogglePreview(sound) },
+            onUse = { onUse(kind, Selection.Chosen(sound)) },
+        )
+    }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 4.dp),
+    )
 }
 
 @Composable
@@ -326,8 +377,9 @@ private fun NowPanel(
     current: Selection?,
     playing: Boolean,
     progress: () -> Float,
+    volume: VolumeUi?,
+    onVolume: (Int) -> Unit,
     onTogglePreview: () -> Unit,
-    onImport: () -> Unit,
 ) {
     val sound = (current as? Selection.Chosen)?.sound
     Surface(
@@ -354,21 +406,17 @@ private fun NowPanel(
                 progress = if (playing) progress else null,
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp).height(56.dp),
             )
-            Row(
-                Modifier.fillMaxWidth().padding(top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                if (sound != null) {
+            if (volume != null) {
+                VolumeControl(kind, volume, onVolume, Modifier.padding(top = 16.dp))
+            }
+            if (sound != null) {
+                Box(Modifier.padding(top = 12.dp)) {
                     PlayStopButton(
                         playing = playing,
                         onClick = onTogglePreview,
                         onClickLabel = stringResource(if (playing) R.string.stop else R.string.preview),
                     )
-                } else {
-                    Spacer(Modifier.width(44.dp))
                 }
-                TextButton(onClick = onImport) { Text(stringResource(R.string.import_audio)) }
             }
         }
     }

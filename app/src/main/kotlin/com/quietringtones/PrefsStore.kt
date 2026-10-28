@@ -23,8 +23,16 @@ class PrefsStore(context: Context) : Store {
         prefs.edit().putString(KEY_PROFILES, StoreCodec.encodeProfiles(profiles)).commit()
     }
 
+    override fun loadImported(): Map<SoundKind, List<String>> =
+        StoreCodec.decodeImported(prefs.getString(KEY_IMPORTED, null))
+
+    override fun saveImported(imported: Map<SoundKind, List<String>>) {
+        prefs.edit().putString(KEY_IMPORTED, StoreCodec.encodeImported(imported)).commit()
+    }
+
     private companion object {
         const val KEY_ORIGINAL = "original"
         const val KEY_PROFILES = "profiles"
+        const val KEY_IMPORTED = "imported"
     }
 }

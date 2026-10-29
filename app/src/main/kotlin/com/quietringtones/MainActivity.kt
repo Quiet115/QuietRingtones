@@ -90,6 +90,7 @@ import com.quietringtones.online.CatalogSettingsTab
 import com.quietringtones.trim.TrimDialog
 import com.quietringtones.ui.CheckMark
 import com.quietringtones.ui.Language
+import com.quietringtones.ui.OtherSoundsTab
 import com.quietringtones.ui.LanguageStore
 import com.quietringtones.ui.SettingsTab
 import com.quietringtones.ui.withLanguage
@@ -153,6 +154,7 @@ private fun MainScreen(viewModel: AppViewModel) {
     val showOnline by viewModel.showOnline.collectAsStateWithLifecycle()
     val cacheSize by viewModel.cacheSize.collectAsStateWithLifecycle()
     val trim by viewModel.trim.collectAsStateWithLifecycle()
+    val switches by viewModel.switches.collectAsStateWithLifecycle()
     val contactsUi by viewModel.contacts.collectAsStateWithLifecycle()
     val pendingContact by viewModel.pendingContact.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
@@ -166,6 +168,7 @@ private fun MainScreen(viewModel: AppViewModel) {
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
         viewModel.refreshContacts()
+        viewModel.refreshSwitches()
     }
     LaunchedEffect(Unit) { viewModel.autoCheckOnStart() }
     // El catálogo online se pide la primera vez que se abre una pestaña de sonidos, no al arrancar.
@@ -174,6 +177,21 @@ private fun MainScreen(viewModel: AppViewModel) {
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             viewModel.beginTrim(importKind, uri, displayName(context.contentResolver, uri))
+        }
+    }
+
+    val profilePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.importProfile(uri)
+    }
+    val shareTitle = stringResource(R.string.profile_share_title)
+    LaunchedEffect(Unit) {
+        viewModel.shareRequests.collect { uri ->
+            val send = Intent(Intent.ACTION_SEND)
+                .setType("application/octet-stream")
+                .putExtra(Intent.EXTRA_STREAM, uri)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            send.clipData = android.content.ClipData.newRawUri("", uri)
+            runCatching { context.startActivity(Intent.createChooser(send, shareTitle)) }
         }
     }
 
@@ -245,7 +263,11 @@ private fun MainScreen(viewModel: AppViewModel) {
                     onSave = viewModel::saveProfile,
                     onApply = viewModel::applyProfile,
                     onDelete = viewModel::deleteProfile,
+                    onShare = viewModel::exportProfile,
+                    onImport = { profilePicker.launch(arrayOf("*/*")) },
                 )
+            } else if (tab == SoundKind.entries.size + 1) {
+                OtherSoundsTab(states = switches, canModify = state.canModify, onSwitch = viewModel::setSwitch)
             } else {
                 SettingsTab(
                     appearance = appearance,
@@ -312,7 +334,7 @@ private fun Header() {
 
 @Composable
 private fun QuietTabs(selected: Int, onSelect: (Int) -> Unit) {
-    val labels = SoundKind.entries.map { it.tabLabel() } + R.string.tab_profiles + R.string.tab_settings
+    val labels = SoundKind.entries.map { it.tabLabel() } + R.string.tab_profiles + R.string.tab_other + R.string.tab_settings
     ScrollableTabRow(
         selectedTabIndex = selected,
         edgePadding = 8.dp,
@@ -672,7 +694,10 @@ private fun ProfilesTab(
     onSave: (String) -> Unit,
     onApply: (String) -> Unit,
     onDelete: (String) -> Unit,
+    onShare: (Profile, String) -> Unit,
+    onImport: () -> Unit,
 ) {
+    val context = LocalContext.current
     var name by rememberSaveable { mutableStateOf("") }
     var toDelete by remember { mutableStateOf<Profile?>(null) }
     val own = profiles.filter { it.id != QuietRingtones.ORIGINAL_ID }
@@ -695,6 +720,12 @@ private fun ProfilesTab(
                         name = ""
                     },
                 ) { Text(stringResource(R.string.save_current_profile)) }
+                OutlinedButton(onClick = onImport) { Text(stringResource(R.string.profile_import)) }
+                Text(
+                    stringResource(R.string.profile_import_help),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         items(profiles, key = { it.id }) { profile ->
@@ -702,6 +733,10 @@ private fun ProfilesTab(
                 profile = profile,
                 onApply = { onApply(profile.id) },
                 onDelete = { toDelete = profile },
+                onShare = {
+                    val shown = if (profile.id == QuietRingtones.ORIGINAL_ID) context.getString(R.string.profile_original) else profile.name
+                    onShare(profile, shown)
+                },
             )
         }
         if (own.isEmpty()) {
@@ -760,7 +795,7 @@ private fun TileHint() {
 }
 
 @Composable
-private fun ProfileRow(profile: Profile, onApply: () -> Unit, onDelete: () -> Unit) {
+private fun ProfileRow(profile: Profile, onApply: () -> Unit, onDelete: () -> Unit, onShare: () -> Unit) {
     val isOriginal = profile.id == QuietRingtones.ORIGINAL_ID
     Column {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 16.dp)) {
@@ -777,9 +812,6 @@ private fun ProfileRow(profile: Profile, onApply: () -> Unit, onDelete: () -> Un
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                }
-                if (!isOriginal) {
-                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete)) }
                 }
                 FilledTonalButton(onClick = onApply) { Text(stringResource(R.string.apply)) }
             }
@@ -799,6 +831,12 @@ private fun ProfileRow(profile: Profile, onApply: () -> Unit, onDelete: () -> Un
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
+            }
+            Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = onShare) { Text(stringResource(R.string.profile_share)) }
+                if (!isOriginal) {
+                    TextButton(onClick = onDelete) { Text(stringResource(R.string.delete)) }
                 }
             }
         }

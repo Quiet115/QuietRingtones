@@ -63,7 +63,7 @@ private val QuietTypography = Typography(
     labelLarge = TextStyle(fontWeight = FontWeight.Medium, fontSize = 14.sp, lineHeight = 20.sp),
 )
 
-/** Colores de la donación: un dorado de buñuelo, fuera del esquema para que no se mezcle con el acento. */
+/** Colores de la donación: un dorado cálido, fuera del esquema para que no se mezcle con el acento. */
 data class DonateColors(val container: Color, val content: Color)
 
 @Composable

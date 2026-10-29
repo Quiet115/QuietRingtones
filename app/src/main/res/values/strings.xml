@@ -7,6 +7,28 @@
     <string name="tab_alarms">Alarms</string>
     <string name="tab_profiles">Profiles</string>
     <string name="tab_settings">Settings</string>
+    <string name="tab_other">Other sounds</string>
+    <string name="profile_share">Share</string>
+    <string name="profile_share_title">Share profile</string>
+    <string name="profile_import">Import a profile</string>
+    <string name="profile_import_help">Open a profile file someone shared from QuietRingtones. Its sounds are added to this phone.</string>
+    <string name="msg_profile_imported">Profile imported: %1$s. Tap Apply to use it.</string>
+    <string name="msg_profile_bad_file">That file isn\'t a QuietRingtones profile, or it is damaged.</string>
+    <string name="msg_profile_export_empty">None of this profile\'s sounds could be read, so there is nothing to share.</string>
+    <string name="msg_profile_export_partial">%1$s sound(s) couldn\'t be included because the phone didn\'t let the app read them.</string>
+    <string name="other_intro">Turn system sounds on or off. This only decides whether they play: Android doesn\'t let apps replace them with other sounds.</string>
+    <string name="other_touch">Touch sounds</string>
+    <string name="other_touch_help">Taps and presses on the screen.</string>
+    <string name="other_dial">Dial-pad tones</string>
+    <string name="other_dial_help">The tones you hear when pressing numbers in the phone app.</string>
+    <string name="other_lock">Lock and unlock sounds</string>
+    <string name="other_lock_help">The sound when the screen locks or unlocks.</string>
+    <string name="other_keyboard_title">Keyboard sound</string>
+    <string name="other_keyboard_body">Each keyboard has its own setting for key sounds, so it is changed in the keyboard itself.</string>
+    <string name="other_keyboard_open">Open keyboard settings</string>
+    <string name="other_charging_title">Charging sound</string>
+    <string name="other_charging_body">Phone makers don\'t let apps change it. You can turn it on or off in your phone\'s own sound settings.</string>
+    <string name="other_sound_settings_open">Open sound settings</string>
 
     <string name="kind_ringtone">Calls</string>
     <string name="kind_notification">Notifications</string>
@@ -15,7 +37,7 @@
     <string name="current_notification">Current notification sound</string>
     <string name="current_alarm">Current alarm sound</string>
 
-    <string name="donate">Buy me a buñuelo</string>
+    <string name="donate">Buy me a kebab</string>
 
     <string name="permission_needed">Android needs your permission to change system sounds.</string>
     <string name="permission_grant">Allow</string>

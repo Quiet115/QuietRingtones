@@ -10,6 +10,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.quietringtones.core.ApplyResult
 import com.quietringtones.core.Outcome
+import com.quietringtones.core.OtherSounds
+import com.quietringtones.core.SwitchResult
+import com.quietringtones.core.SystemSwitch
 import com.quietringtones.core.Profile
 import com.quietringtones.core.ProfileResult
 import com.quietringtones.core.QuietRingtones
@@ -30,6 +33,8 @@ import com.quietringtones.online.CatalogPrefs
 import com.quietringtones.trim.AudioTrimmer
 import com.quietringtones.online.OnlineCatalogSource
 import com.quietringtones.online.PreviewCache
+import com.quietringtones.share.ProfileFileException
+import com.quietringtones.share.ProfileTransfer
 import com.quietringtones.updates.GitHubReleases
 import com.quietringtones.updates.UpdateDownloader
 import com.quietringtones.updates.UpdatePrefs
@@ -47,7 +52,9 @@ import com.quietringtones.ui.playbackFraction
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -157,6 +164,56 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(message = Message(R.string.msg_volume_blocked)) }
         }
         _volumeState.value = readVolumes()
+    }
+
+    // --- Otros sonidos del sistema --------------------------------------------------
+
+    private val otherSounds = OtherSounds(AndroidSystemSwitches(application))
+    private val _switches = MutableStateFlow(otherSounds.states())
+    val switches: StateFlow<Map<SystemSwitch, Boolean>> = _switches
+
+    fun refreshSwitches() {
+        _switches.value = otherSounds.states()
+    }
+
+    fun setSwitch(switch: SystemSwitch, on: Boolean) {
+        if (otherSounds.set(switch, on) == SwitchResult.NeedsPermission) {
+            _state.update { it.copy(message = Message(R.string.msg_needs_permission)) }
+        }
+        refreshSwitches()
+    }
+
+    // --- Compartir perfiles entre teléfonos -------------------------------------------
+
+    private val transfer = ProfileTransfer(application)
+    private val _shareRequests = MutableSharedFlow<Uri>(extraBufferCapacity = 1)
+    val shareRequests: SharedFlow<Uri> = _shareRequests
+
+    fun exportProfile(profile: Profile, displayName: String) = launchIo {
+        val exported = transfer.export(profile, displayName)
+        if (exported == null) {
+            _state.update { it.copy(message = Message(R.string.msg_profile_export_empty)) }
+            return@launchIo
+        }
+        if (exported.skipped > 0) {
+            _state.update { it.copy(message = Message(R.string.msg_profile_export_partial, exported.skipped.toString())) }
+        }
+        _shareRequests.tryEmit(exported.uri)
+    }
+
+    fun importProfile(source: Uri) = launchIo {
+        val message = try {
+            val (bundle, files) = transfer.read(source)
+            val profile = app.importProfile(bundle) { Uri.fromFile(files.getValue(it.file)).toString() }
+            Message(R.string.msg_profile_imported, profile.name)
+        } catch (e: ProfileFileException) {
+            Message(R.string.msg_profile_bad_file)
+        } catch (e: IOException) {
+            Message(R.string.msg_profile_bad_file)
+        } finally {
+            transfer.cleanUpImport()
+        }
+        reload(message)
     }
 
     // --- Sonido por contacto -------------------------------------------------------

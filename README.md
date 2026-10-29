@@ -18,13 +18,15 @@ Change your Android ringtone, notification sound and alarm sound in one tap, imp
 - Trim your own audio: when you import a file you choose where it starts and how long it lasts (a few seconds or the whole file).
 - Search: filter any list and the online catalog by name.
 - Sound per contact (off by default): give a contact their own ringtone. Turning it on explains what it needs; contacts are read from your phone when shown and never kept or sent.
+- Share a profile with another phone: *Share* on any profile creates a `.qrprofile` file that carries the audio of its sounds; on the other phone, *Import a profile* adds those sounds and the profile (it never overwrites one you already have). You choose how to send the file; the app sends nothing itself.
+- Other sounds: turn touch sounds, dial-pad tones and lock sounds on or off, with shortcuts to the keyboard and sound settings of the phone. Android only allows switching these on or off, not replacing them.
 - Updates: checks GitHub Releases when you open the app (on by default, can be turned off, or tap *Check for updates*). New versions download over Wi-Fi and you confirm the install. Older versions stay available on the [releases page](https://github.com/Quiet115/QuietRingtones/releases).
 
 Everything stays on your device. There is no account, no server and no analytics. The only network use is checking for and downloading updates, and the online catalog, both from GitHub. No data about you is sent.
 
 ## Platform limits
 
-- **Android:** the app needs the special *Modify system settings* permission, which you grant yourself in Android settings. It can set the **default** ringtone, notification and alarm sounds. It cannot change the sound that each *other* app uses for its own notification channels.
+- **Android:** the app needs the special *Modify system settings* permission, which you grant yourself in Android settings. It can set the **default** ringtone, notification and alarm sounds. It cannot change the sound that each *other* app uses for its own notification channels, nor replace system sounds such as the keyboard, dial-pad, lock or charging sound (the files are read-only and, on Samsung, the charging sound follows the phone's sound theme).
 - **iPhone:** iOS does not allow any third-party app to change the system ringtone or notification sounds, so this app cannot be ported as-is. A future iOS companion could only export `.m4r` tones and guide you through installing them.
 
 ## Build
@@ -63,7 +65,7 @@ Debug builds use a different signature and cannot be updated from a release: uni
 
 ## Support the project
 
-If you like it, you can [buy me a buñuelo](https://ko-fi.com/quiet115).
+If you like it, you can [buy me a kebab](https://ko-fi.com/quiet115).
 
 ## License
 

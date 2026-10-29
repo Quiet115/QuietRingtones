@@ -58,6 +58,25 @@ class QuietRingtones(
 
     fun saveCurrentAsProfile(name: String): Profile = saveProfile(name, current())
 
+    /**
+     * Crea el perfil que llega de otro teléfono. Cada audio se importa como sonido de su tipo y el perfil apunta a él.
+     * Nunca pisa un perfil propio: si el nombre ya existe, se le añade un número.
+     */
+    fun importProfile(bundle: ProfileBundle, audioSource: (BundleEntry.Audio) -> String): Profile {
+        val selections = bundle.entries.mapValues { (kind, entry) ->
+            when (entry) {
+                BundleEntry.Silent -> Selection.Silent
+                is BundleEntry.Audio -> {
+                    val extension = entry.file.substringAfterLast('.', "")
+                    val title = safeTitle(entry.title)
+                    val displayName = if (extension.isEmpty()) title else "$title.$extension"
+                    Selection.Chosen(importSound(audioSource(entry), displayName, kind))
+                }
+            }
+        }
+        return saveProfile(freeProfileName(bundle.name, store.loadProfiles().map { it.name }), selections)
+    }
+
     fun deleteProfile(id: String) {
         store.saveProfiles(store.loadProfiles().filterNot { it.id == id })
     }

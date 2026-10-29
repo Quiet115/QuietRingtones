@@ -7,6 +7,28 @@
     <string name="tab_alarms">Alarmas</string>
     <string name="tab_profiles">Perfiles</string>
     <string name="tab_settings">Configuración</string>
+    <string name="tab_other">Otros sonidos</string>
+    <string name="profile_share">Compartir</string>
+    <string name="profile_share_title">Compartir perfil</string>
+    <string name="profile_import">Importar un perfil</string>
+    <string name="profile_import_help">Abre un archivo de perfil que alguien compartió desde QuietRingtones. Sus sonidos se añaden a este teléfono.</string>
+    <string name="msg_profile_imported">Perfil importado: %1$s. Pulsa Aplicar para usarlo.</string>
+    <string name="msg_profile_bad_file">Ese archivo no es un perfil de QuietRingtones o está dañado.</string>
+    <string name="msg_profile_export_empty">No se pudo leer ningún sonido de este perfil, así que no hay nada que compartir.</string>
+    <string name="msg_profile_export_partial">%1$s sonido(s) no se pudieron incluir porque el teléfono no dejó que la app los leyera.</string>
+    <string name="other_intro">Activa o desactiva sonidos del sistema. Solo decides si suenan o no: Android no deja que una app los cambie por otros.</string>
+    <string name="other_touch">Sonidos al tocar</string>
+    <string name="other_touch_help">Toques y pulsaciones en la pantalla.</string>
+    <string name="other_dial">Tonos del teclado de marcar</string>
+    <string name="other_dial_help">Los tonos al pulsar números en la app del teléfono.</string>
+    <string name="other_lock">Sonidos de bloqueo y desbloqueo</string>
+    <string name="other_lock_help">El sonido al bloquear o desbloquear la pantalla.</string>
+    <string name="other_keyboard_title">Sonido del teclado</string>
+    <string name="other_keyboard_body">Cada teclado tiene su propio ajuste para el sonido de las teclas, así que se cambia en el teclado.</string>
+    <string name="other_keyboard_open">Abrir ajustes del teclado</string>
+    <string name="other_charging_title">Sonido de carga</string>
+    <string name="other_charging_body">Los fabricantes no dejan que una app lo cambie. Puedes activarlo o desactivarlo en los ajustes de sonido de tu teléfono.</string>
+    <string name="other_sound_settings_open">Abrir ajustes de sonido</string>
 
     <string name="kind_ringtone">Llamadas</string>
     <string name="kind_notification">Notificaciones</string>
@@ -15,7 +37,7 @@
     <string name="current_notification">Sonido de notificación actual</string>
     <string name="current_alarm">Sonido de alarma actual</string>
 
-    <string name="donate">Buy me a buñuelo</string>
+    <string name="donate">Buy me a kebab</string>
 
     <string name="permission_needed">Android necesita tu permiso para cambiar los sonidos del sistema.</string>
     <string name="permission_grant">Dar permiso</string>

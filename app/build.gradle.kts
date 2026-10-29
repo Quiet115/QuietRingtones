@@ -21,8 +21,8 @@ android {
         applicationId = "com.quietringtones"
         minSdk = 29
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.2.0"
+        versionCode = 9
+        versionName = "1.2.2"
     }
 
     signingConfigs {
@@ -37,6 +37,11 @@ android {
     }
 
     buildTypes {
+        // La versión de depuración se instala junto a la oficial (otro nombre de paquete) y no la pisa.
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true

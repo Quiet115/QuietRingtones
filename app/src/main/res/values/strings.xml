@@ -124,4 +124,11 @@
     <string name="msg_added_online">Added and in use: %1$s</string>
     <string name="msg_added_only">Added: %1$s. Allow the permission to use it.</string>
     <string name="msg_cache_cleared">Cache cleared</string>
+
+    <string name="tile_label">Profiles</string>
+    <string name="tile_pick">Tap to pick one</string>
+    <string name="tile_switch">Tap to switch</string>
+    <string name="tile_title">Quick Settings tile</string>
+    <string name="tile_help">Switch profiles from the Quick Settings panel with one tap, without opening the app. Swipe down, tap the pencil and drag the QuietRingtones tile in.</string>
+    <string name="tile_add">Add the tile</string>
 </resources>

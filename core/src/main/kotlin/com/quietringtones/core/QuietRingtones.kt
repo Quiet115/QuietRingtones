@@ -62,6 +62,25 @@ class QuietRingtones(
         store.saveProfiles(store.loadProfiles().filterNot { it.id == id })
     }
 
+    /** El perfil cuyos sonidos son los que suenan ahora, si hay alguno (el Estado original cuenta). */
+    fun activeProfile(): Profile? {
+        val now = current()
+        return profiles().firstOrNull { profile ->
+            profile.selections.isNotEmpty() && profile.selections.all { (kind, selection) -> now[kind] == selection }
+        }
+    }
+
+    /** El perfil que sigue al activo, en el orden de la lista y dando la vuelta; si ninguno está activo, el primero. */
+    fun nextProfile(): Profile? {
+        val all = profiles()
+        if (all.isEmpty()) return null
+        val active = activeProfile() ?: return all.first()
+        return all[(all.indexOfFirst { it.id == active.id } + 1) % all.size]
+    }
+
+    /** Pasa al perfil siguiente (para el tile de ajustes rápidos). Null si no hay ningún perfil. */
+    fun switchToNextProfile(): ProfileResult? = nextProfile()?.let { applyProfile(it.id) }
+
     fun applyProfile(id: String): ProfileResult {
         val profile = profiles().firstOrNull { it.id == id } ?: return ProfileResult.NotFound
         if (!system.canModify()) return ProfileResult.NeedsPermission

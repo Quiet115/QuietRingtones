@@ -124,4 +124,11 @@
     <string name="msg_added_online">Añadido y en uso: %1$s</string>
     <string name="msg_added_only">Añadido: %1$s. Da el permiso para usarlo.</string>
     <string name="msg_cache_cleared">Caché vaciada</string>
+
+    <string name="tile_label">Perfiles</string>
+    <string name="tile_pick">Toca para elegir uno</string>
+    <string name="tile_switch">Toca para cambiar</string>
+    <string name="tile_title">Tile de ajustes rápidos</string>
+    <string name="tile_help">Cambia de perfil desde el panel de ajustes rápidos con un toque, sin abrir la app. Desliza hacia abajo, pulsa el lápiz y arrastra el tile de QuietRingtones.</string>
+    <string name="tile_add">Añadir el tile</string>
 </resources>

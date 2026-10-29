@@ -3,6 +3,7 @@ package com.quietringtones.core
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class QuietRingtonesTest {
@@ -237,6 +238,64 @@ class QuietRingtonesTest {
         system.remove(SoundKind.RINGTONE, gone)
 
         assertTrue(app.catalog(SoundKind.RINGTONE).yours.isEmpty())
+    }
+    // --- Cambio rápido de perfil -------------------------------------------------
+
+    @Test
+    fun `the active profile is the one whose sounds are playing now`() {
+        val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a), SoundKind.NOTIFICATION to Selection.Chosen(b)))
+        val app = app(system)
+        val night = app.saveProfile("Noche", mapOf(SoundKind.RINGTONE to Selection.Chosen(c)))
+        val home = app.saveProfile("Casa", mapOf(SoundKind.RINGTONE to Selection.Chosen(a), SoundKind.NOTIFICATION to Selection.Chosen(b)))
+
+        assertEquals(home.id, app.activeProfile()?.id)
+        app.applyProfile(night.id)
+        assertEquals(night.id, app.activeProfile()?.id)
+    }
+
+    @Test
+    fun `no profile is active when none matches or none exists`() {
+        val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
+        val app = app(system)
+        assertNull(app.activeProfile())
+        app.saveProfile("Noche", mapOf(SoundKind.RINGTONE to Selection.Chosen(b)))
+        assertNull(app.activeProfile())
+    }
+
+    @Test
+    fun `switching cycles through the profiles, original first, and wraps around`() {
+        val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
+        val app = app(system)
+        app.saveProfile("Noche", mapOf(SoundKind.RINGTONE to Selection.Chosen(b)))
+        app.saveProfile("Trabajo", mapOf(SoundKind.RINGTONE to Selection.Chosen(c)))
+        app.apply(SoundKind.RINGTONE, Selection.Chosen(a)) // captura el original y lo deja activo
+
+        val names = mutableListOf<String>()
+        repeat(4) {
+            app.switchToNextProfile()
+            names += app.activeProfile()!!.name
+        }
+
+        assertEquals(listOf("Noche", "Trabajo", "Estado original".let { QuietRingtones.ORIGINAL_NAME }, "Noche"), names)
+    }
+
+    @Test
+    fun `with no active profile switching starts at the first one`() {
+        val system = system(initial = mapOf(SoundKind.RINGTONE to Selection.Chosen(c)))
+        val app = app(system)
+        val first = app.saveProfile("Noche", mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
+        app.saveProfile("Casa", mapOf(SoundKind.RINGTONE to Selection.Chosen(b)))
+
+        assertEquals(first.id, app.nextProfile()?.id)
+    }
+
+    @Test
+    fun `switching with no profiles does nothing, and without permission it is reported`() {
+        assertNull(app(system()).switchToNextProfile())
+        val locked = system(canModify = false)
+        val app = app(locked)
+        app.saveProfile("Noche", mapOf(SoundKind.RINGTONE to Selection.Chosen(a)))
+        assertEquals(ProfileResult.NeedsPermission, app.switchToNextProfile())
     }
     // --- Perfiles ---------------------------------------------------------------
 

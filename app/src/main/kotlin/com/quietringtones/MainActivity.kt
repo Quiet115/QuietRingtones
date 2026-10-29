@@ -1,9 +1,13 @@
 package com.quietringtones
 
+import android.app.StatusBarManager
+import android.content.ComponentName
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.graphics.drawable.Icon
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.provider.Settings
@@ -647,6 +651,7 @@ private fun ProfilesTab(
                 )
             }
         }
+        item(key = "tile") { TileHint() }
     }
 
     toDelete?.let { profile ->
@@ -664,6 +669,30 @@ private fun ProfilesTab(
                 TextButton(onClick = { toDelete = null }) { Text(stringResource(R.string.cancel)) }
             },
         )
+    }
+}
+
+@Composable
+private fun TileHint() {
+    val context = LocalContext.current
+    Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(stringResource(R.string.tile_title), style = MaterialTheme.typography.titleMedium)
+        Text(
+            stringResource(R.string.tile_help),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            OutlinedButton(onClick = {
+                val manager = context.getSystemService(StatusBarManager::class.java)
+                manager?.requestAddTileService(
+                    ComponentName(context, ProfileTileService::class.java),
+                    context.getString(R.string.tile_label),
+                    Icon.createWithResource(context, R.drawable.ic_tile),
+                    context.mainExecutor,
+                ) { }
+            }) { Text(stringResource(R.string.tile_add)) }
+        }
     }
 }
 

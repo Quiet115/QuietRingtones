@@ -36,9 +36,10 @@ fun SettingsTab(
     onLanguage: (Language) -> Unit,
     updatesPage: @Composable () -> Unit,
     catalogPage: @Composable () -> Unit,
+    contactsPage: @Composable () -> Unit,
 ) {
     // Actualizaciones va primero: es lo que se abre al entrar en Configuración.
-    val pages = listOf(R.string.settings_updates, R.string.settings_appearance, R.string.settings_language, R.string.settings_catalog)
+    val pages = listOf(R.string.settings_updates, R.string.settings_appearance, R.string.settings_language, R.string.settings_catalog, R.string.settings_contacts)
     var page by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -57,7 +58,8 @@ fun SettingsTab(
             0 -> updatesPage()
             1 -> AppearanceTab(appearance, onAppearance)
             2 -> LanguageTab(language, onLanguage)
-            else -> catalogPage()
+            3 -> catalogPage()
+            else -> contactsPage()
         }
     }
 }

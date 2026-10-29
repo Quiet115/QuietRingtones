@@ -13,6 +13,10 @@
     <!-- Para abrir el instalador del sistema con la actualización descargada; el usuario lo confirma. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Solo se piden si el usuario activa «Sonido por contacto» (desactivado de serie). No se guardan ni se envían contactos. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+
     <application
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"

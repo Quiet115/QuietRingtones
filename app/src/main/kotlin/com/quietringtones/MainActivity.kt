@@ -82,7 +82,12 @@ import com.quietringtones.core.Sound
 import com.quietringtones.core.SoundCatalog
 import com.quietringtones.core.SoundKind
 import com.quietringtones.core.forKind
+import com.quietringtones.core.matching
+import com.quietringtones.core.matchingOnline
+import com.quietringtones.contacts.ContactSoundDialog
+import com.quietringtones.contacts.ContactsSettingsTab
 import com.quietringtones.online.CatalogSettingsTab
+import com.quietringtones.trim.TrimDialog
 import com.quietringtones.ui.CheckMark
 import com.quietringtones.ui.Language
 import com.quietringtones.ui.LanguageStore
@@ -147,6 +152,9 @@ private fun MainScreen(viewModel: AppViewModel) {
     val downloading by viewModel.downloading.collectAsStateWithLifecycle()
     val showOnline by viewModel.showOnline.collectAsStateWithLifecycle()
     val cacheSize by viewModel.cacheSize.collectAsStateWithLifecycle()
+    val trim by viewModel.trim.collectAsStateWithLifecycle()
+    val contactsUi by viewModel.contacts.collectAsStateWithLifecycle()
+    val pendingContact by viewModel.pendingContact.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val updates by viewModel.updates.collectAsStateWithLifecycle()
@@ -155,19 +163,47 @@ private fun MainScreen(viewModel: AppViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var importKind by rememberSaveable { mutableStateOf(SoundKind.RINGTONE) }
 
-    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.refresh() }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        viewModel.refresh()
+        viewModel.refreshContacts()
+    }
     LaunchedEffect(Unit) { viewModel.autoCheckOnStart() }
     // El catálogo online se pide la primera vez que se abre una pestaña de sonidos, no al arrancar.
     LaunchedEffect(tab) { if (tab < SoundKind.entries.size) viewModel.loadOnline() }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
-            viewModel.importAndUse(importKind, uri, displayName(context.contentResolver, uri))
+            viewModel.beginTrim(importKind, uri, displayName(context.contentResolver, uri))
         }
     }
 
+    trim?.let { current ->
+        TrimDialog(
+            trim = current,
+            previewing = playing == "trim",
+            progress = { progress.value },
+            onStart = viewModel::setTrimStart,
+            onLength = viewModel::setTrimLength,
+            onWhole = viewModel::trimWholeFile,
+            onPreview = viewModel::previewTrim,
+            onCancel = viewModel::cancelTrim,
+            onConfirm = viewModel::confirmTrim,
+        )
+    }
+
+    pendingContact?.let { contact ->
+        ContactSoundDialog(
+            contactName = contact.name,
+            sounds = state.catalog[SoundKind.RINGTONE]?.all.orEmpty(),
+            playing = playing,
+            onTogglePreview = { viewModel.togglePreview(SoundKind.RINGTONE, it) },
+            onPick = viewModel::assignToPending,
+            onCancel = viewModel::cancelPendingContact,
+        )
+    }
+
     val message = state.message
-    val text = message?.let { stringResource(it.res, *listOfNotNull(it.arg).toTypedArray()) }
+    val text = message?.let { stringResource(it.res, *listOfNotNull(it.arg, it.arg2).toTypedArray()) }
     LaunchedEffect(text) {
         if (text != null) {
             snackbar.showSnackbar(text)
@@ -216,6 +252,15 @@ private fun MainScreen(viewModel: AppViewModel) {
                     onAppearance = viewModel::setAppearance,
                     language = language,
                     onLanguage = viewModel::setLanguage,
+                    contactsPage = {
+                        ContactsSettingsTab(
+                            ui = contactsUi,
+                            onDisable = { viewModel.setContactsEnabled(false) },
+                            onPermissionResult = viewModel::onContactsPermissionResult,
+                            onPickContact = viewModel::chooseContact,
+                            onRemove = { viewModel.removeContactSound(it.id, it.name) },
+                        )
+                    },
                     catalogPage = {
                         CatalogSettingsTab(
                             showOnline = showOnline,
@@ -333,6 +378,9 @@ private fun SoundsTab(
     val current = state.current[kind]
     val currentSound = (current as? Selection.Chosen)?.sound
     val catalog = state.catalog[kind] ?: SoundCatalog(emptyList(), emptyList())
+    var query by rememberSaveable(kind) { mutableStateOf("") }
+    val shown = SoundCatalog(catalog.yours.matching(query), catalog.system.matching(query))
+    val onlineMatches = (online.state as? OnlineState.Loaded)?.sounds?.forKind(kind)?.matchingOnline(query).orEmpty()
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item(key = "now") {
             NowPanel(
@@ -351,6 +399,21 @@ private fun SoundsTab(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
             ) { Text(stringResource(R.string.import_audio)) }
         }
+        item(key = "search") {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                singleLine = true,
+                placeholder = { Text(stringResource(R.string.search_hint)) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) TextButton(onClick = { query = "" }) { Text(stringResource(R.string.clear)) }
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 8.dp),
+            )
+        }
+        if (query.isNotBlank() && shown.all.isEmpty() && onlineMatches.isEmpty()) {
+            item(key = "nomatch") { StatusLine(stringResource(R.string.search_none, query.trim())) }
+        }
         if (catalog.all.isEmpty()) {
             item(key = "empty") {
                 Text(
@@ -361,12 +424,12 @@ private fun SoundsTab(
                 )
             }
         }
-        if (catalog.yours.isNotEmpty()) {
+        if (shown.yours.isNotEmpty()) {
             item(key = "yours-header") { SectionLabel(stringResource(R.string.your_audio)) }
-            soundRows(catalog.yours, "yours", kind, currentSound, playing, progress, onUse, onTogglePreview)
+            soundRows(shown.yours, "yours", kind, currentSound, playing, progress, onUse, onTogglePreview)
             item(key = "phone-header") { SectionLabel(stringResource(R.string.phone_sounds)) }
         }
-        soundRows(catalog.system, "phone", kind, currentSound, playing, progress, onUse, onTogglePreview)
+        soundRows(shown.system, "phone", kind, currentSound, playing, progress, onUse, onTogglePreview)
         if (online.visible) {
             item(key = "online-header") { SectionLabel(stringResource(R.string.online_catalog), stringResource(R.string.online_catalog_help)) }
             when (val s = online.state) {
@@ -377,7 +440,7 @@ private fun SoundsTab(
                         TextButton(onClick = onRetryOnline, modifier = Modifier.padding(start = 12.dp)) { Text(stringResource(R.string.try_again)) }
                     }
                 }
-                is OnlineState.Loaded -> items(s.sounds.forKind(kind), key = { "online-${it.id}" }) { sound ->
+                is OnlineState.Loaded -> items(onlineMatches, key = { "online-${it.id}" }) { sound ->
                     OnlineRow(
                         sound = sound,
                         added = sound.isAddedTo(catalog.yours),

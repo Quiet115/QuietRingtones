@@ -131,4 +131,32 @@
     <string name="tile_title">Quick Settings tile</string>
     <string name="tile_help">Switch profiles from the Quick Settings panel with one tap, without opening the app. Swipe down, tap the pencil and drag the QuietRingtones tile in.</string>
     <string name="tile_add">Add the tile</string>
+
+    <string name="search_hint">Search sounds</string>
+    <string name="search_none">No sounds match “%1$s”.</string>
+    <string name="clear">Clear</string>
+
+    <string name="trim_title">Choose the part to use</string>
+    <string name="trim_summary">From %1$s to %2$s, %3$s</string>
+    <string name="trim_start">Start</string>
+    <string name="trim_length">Length</string>
+    <string name="trim_whole">Whole file</string>
+    <string name="trim_busy">Trimming…</string>
+
+    <string name="settings_contacts">Contacts</string>
+    <string name="contacts_switch">Sound per contact</string>
+    <string name="contacts_switch_help">Give a contact their own ringtone. Off by default.</string>
+    <string name="contacts_permission_off">Contacts permission is off, so this feature can\'t work.</string>
+    <string name="contacts_allow">Allow</string>
+    <string name="contacts_add">Choose a contact</string>
+    <string name="contacts_none">No contact has its own sound yet.</string>
+    <string name="contacts_remove">Remove</string>
+    <string name="contacts_explain_title">Sound per contact</string>
+    <string name="contacts_explain_body">To give a contact their own sound, QuietRingtones needs permission to see your contacts and change their ringtone setting. We don\'t keep or send your contacts: everything stays on this phone and is only for you.</string>
+    <string name="not_now">Not now</string>
+    <string name="contacts_pick_title">Sound for %1$s</string>
+    <string name="contact_unknown_sound">Custom sound</string>
+    <string name="msg_contacts_denied">Contacts permission wasn\'t granted. Sound per contact stays off.</string>
+    <string name="msg_contact_set">%1$s now rings with %2$s</string>
+    <string name="msg_contact_removed">%1$s uses your default ringtone again</string>
 </resources>

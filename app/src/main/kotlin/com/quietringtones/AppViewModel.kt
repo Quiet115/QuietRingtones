@@ -17,11 +17,17 @@ import com.quietringtones.core.OnlineSound
 import com.quietringtones.core.Release
 import com.quietringtones.core.UpdateCheck
 import com.quietringtones.core.Updater
+import com.quietringtones.contacts.ContactPrefs
+import com.quietringtones.contacts.ContactSound
+import com.quietringtones.contacts.ContactSounds
+import com.quietringtones.contacts.PendingContact
+import com.quietringtones.core.TrimSelection
 import com.quietringtones.core.Version
 import com.quietringtones.core.VolumeAdvice
 import com.quietringtones.core.VolumeAdvisor
 import com.quietringtones.ui.messageRes
 import com.quietringtones.online.CatalogPrefs
+import com.quietringtones.trim.AudioTrimmer
 import com.quietringtones.online.OnlineCatalogSource
 import com.quietringtones.online.PreviewCache
 import com.quietringtones.updates.GitHubReleases
@@ -47,7 +53,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-data class Message(@StringRes val res: Int, val arg: String? = null)
+data class Message(@StringRes val res: Int, val arg: String? = null, val arg2: String? = null)
 
 data class UiState(
     val canModify: Boolean = false,
@@ -57,6 +63,7 @@ data class UiState(
     val message: Message? = null,
 )
 
+private const val TRIM_KEY = "trim"
 private const val DAY_MS = 24L * 60 * 60 * 1000
 
 sealed interface UpdateStatus {
@@ -83,6 +90,14 @@ sealed interface OnlineState {
     data class Loaded(val sounds: List<OnlineSound>) : OnlineState
     data object Failed : OnlineState
 }
+
+data class ContactsUi(
+    val enabled: Boolean = false,
+    val permitted: Boolean = false,
+    val assigned: List<ContactSound> = emptyList(),
+)
+
+data class TrimUi(val kind: SoundKind, val uri: Uri, val displayName: String, val selection: TrimSelection, val busy: Boolean)
 
 data class VolumeUi(val index: Int, val min: Int, val max: Int, val advice: VolumeAdvice)
 
@@ -142,6 +157,144 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             _state.update { it.copy(message = Message(R.string.msg_volume_blocked)) }
         }
         _volumeState.value = readVolumes()
+    }
+
+    // --- Sonido por contacto -------------------------------------------------------
+
+    private val contactPrefs = ContactPrefs(application)
+    private val contactSounds = ContactSounds(application)
+
+    private val _contacts = MutableStateFlow(ContactsUi())
+    val contacts: StateFlow<ContactsUi> = _contacts
+
+    private val _pendingContact = MutableStateFlow<PendingContact?>(null)
+    val pendingContact: StateFlow<PendingContact?> = _pendingContact
+
+    fun refreshContacts() = launchIo {
+        val permitted = contactSounds.hasPermission()
+        val enabled = contactPrefs.enabled && permitted
+        val unknown = getApplication<Application>().getString(R.string.contact_unknown_sound)
+        _contacts.value = ContactsUi(
+            enabled = contactPrefs.enabled,
+            permitted = permitted,
+            assigned = if (enabled) contactSounds.assigned(unknown) else emptyList(),
+        )
+    }
+
+    fun setContactsEnabled(enabled: Boolean) {
+        contactPrefs.enabled = enabled
+        refreshContacts()
+    }
+
+    /** Tras la pantalla de permisos: sin ellos la función se queda desactivada. */
+    fun onContactsPermissionResult(granted: Boolean) {
+        if (granted) {
+            contactPrefs.enabled = true
+        } else {
+            contactPrefs.enabled = false
+            _state.update { it.copy(message = Message(R.string.msg_contacts_denied)) }
+        }
+        refreshContacts()
+    }
+
+    fun chooseContact(uri: Uri) = launchIo {
+        val name = contactSounds.nameOf(uri) ?: return@launchIo
+        _pendingContact.value = PendingContact(uri, name)
+    }
+
+    fun cancelPendingContact() {
+        stopPreview()
+        _pendingContact.value = null
+    }
+
+    fun assignToPending(sound: Sound) {
+        val pending = _pendingContact.value ?: return
+        stopPreview()
+        _pendingContact.value = null
+        launchIo {
+            try {
+                contactSounds.assign(pending.uri, Uri.parse(sound.id))
+                _state.update { it.copy(message = Message(R.string.msg_contact_set, pending.name, sound.name)) }
+            } catch (e: SecurityException) {
+                _state.update { it.copy(message = Message(R.string.msg_contacts_denied)) }
+            }
+            refreshContacts()
+        }
+    }
+
+    fun removeContactSound(id: Long, name: String) = launchIo {
+        contactSounds.remove(id)
+        _state.update { it.copy(message = Message(R.string.msg_contact_removed, name)) }
+        refreshContacts()
+    }
+
+    // --- Recorte -------------------------------------------------------------------
+
+    private val trimmer = AudioTrimmer(application)
+    private val _trim = MutableStateFlow<TrimUi?>(null)
+    val trim: StateFlow<TrimUi?> = _trim
+
+    /** Tras elegir un audio se abre el recorte; si no se puede leer su duración, se importa entero. */
+    fun beginTrim(kind: SoundKind, uri: Uri, displayName: String) {
+        viewModelScope.launch {
+            val duration = runCatching { withContext(Dispatchers.IO) { trimmer.durationMs(uri) } }.getOrDefault(0L)
+            if (duration <= 0L) {
+                importAndUse(kind, uri, displayName)
+            } else {
+                _trim.value = TrimUi(kind, uri, displayName, TrimSelection.initial(duration), busy = false)
+            }
+        }
+    }
+
+    fun setTrimStart(ms: Long) = updateTrim { it.copy(selection = it.selection.withStart(ms)) }
+    fun setTrimLength(ms: Long) = updateTrim { it.copy(selection = it.selection.withLength(ms)) }
+    fun trimWholeFile() = updateTrim { it.copy(selection = it.selection.whole()) }
+
+    private fun updateTrim(change: (TrimUi) -> TrimUi) {
+        val current = _trim.value ?: return
+        if (current.busy) return
+        stopPreview()
+        _trim.value = change(current)
+    }
+
+    /** Escucha solo la parte elegida; otro toque la detiene. */
+    fun previewTrim() {
+        val trim = _trim.value ?: return
+        if (_playing.value == TRIM_KEY) {
+            stopPreview()
+            return
+        }
+        stopPreview()
+        _playing.value = TRIM_KEY
+        startPreview(trim.kind, TRIM_KEY, trim.uri, trim.selection.startMs..trim.selection.endMs)
+    }
+
+    fun cancelTrim() {
+        if (_trim.value?.busy == true) return
+        stopPreview()
+        _trim.value = null
+    }
+
+    fun confirmTrim() {
+        val trim = _trim.value ?: return
+        if (trim.busy) return
+        stopPreview()
+        _trim.value = trim.copy(busy = true)
+        launchIo {
+            try {
+                if (trim.selection.isWholeFile) {
+                    importNow(trim.kind, trim.uri, trim.displayName)
+                } else {
+                    val file = trimmer.trim(trim.uri, trim.selection.startMs, trim.selection.lengthMs, File(getApplication<Application>().cacheDir, "trim"))
+                    val base = trim.displayName.substringBeforeLast('.')
+                    val range = "${trim.selection.startMs / 1000}s-${trim.selection.endMs / 1000}s"
+                    importNow(trim.kind, Uri.fromFile(file), "$base ($range).${file.extension}")
+                    file.delete()
+                }
+            } finally {
+                _trim.value = null
+            }
+        }
     }
 
     // --- Catálogo online ------------------------------------------------------------
@@ -367,6 +520,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun importAndUse(kind: SoundKind, source: Uri, displayName: String) = launchIo {
+        importNow(kind, source, displayName)
+    }
+
+    private fun importNow(kind: SoundKind, source: Uri, displayName: String) {
         val sound = app.importSound(source.toString(), displayName, kind)
         val message = when (app.apply(kind, Selection.Chosen(sound))) {
             ApplyResult.Applied -> Message(R.string.msg_imported, sound.name)
@@ -407,7 +564,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Reproduce [uri] con el canal de audio de [kind]; [key] identifica qué fila está sonando. */
-    private fun startPreview(kind: SoundKind, key: String, uri: Uri) {
+    private fun startPreview(kind: SoundKind, key: String, uri: Uri, range: LongRange? = null) {
         val advice = readVolumes().getValue(kind).advice
         if (advice != VolumeAdvice.OK && advice != VolumeAdvice.LOW) {
             _state.update { it.copy(message = Message(advice.messageRes())) }
@@ -433,8 +590,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             }
             next.setOnPreparedListener {
                 if (player !== next) return@setOnPreparedListener
+                if (range != null) it.seekTo(range.first, MediaPlayer.SEEK_CLOSEST)
                 it.start()
-                trackProgress(next)
+                trackProgress(next, range)
             }
             next.prepareAsync()
         } catch (e: Exception) {
@@ -443,13 +601,19 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** Sigue la posición real del reproductor, unas 30 veces por segundo, mientras suene. */
-    private fun trackProgress(active: MediaPlayer) {
+    private fun trackProgress(active: MediaPlayer, range: LongRange? = null) {
         watchJob?.cancel()
         watchJob = viewModelScope.launch {
             while (player === active) {
                 val duration = runCatching { active.duration }.getOrDefault(-1)
                 val position = runCatching { active.currentPosition }.getOrDefault(0)
-                _progress.value = playbackFraction(position, duration)
+                if (range == null) {
+                    _progress.value = playbackFraction(position, duration)
+                } else {
+                    // Solo suena la parte elegida: se para al llegar a su final.
+                    if (position >= range.last) { stopPreview(); break }
+                    _progress.value = playbackFraction((position - range.first).toInt().coerceAtLeast(0), (range.last - range.first).toInt())
+                }
                 delay(33)
             }
         }

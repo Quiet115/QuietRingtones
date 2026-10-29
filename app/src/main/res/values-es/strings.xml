@@ -131,4 +131,32 @@
     <string name="tile_title">Tile de ajustes rápidos</string>
     <string name="tile_help">Cambia de perfil desde el panel de ajustes rápidos con un toque, sin abrir la app. Desliza hacia abajo, pulsa el lápiz y arrastra el tile de QuietRingtones.</string>
     <string name="tile_add">Añadir el tile</string>
+
+    <string name="search_hint">Buscar sonidos</string>
+    <string name="search_none">Ningún sonido coincide con «%1$s».</string>
+    <string name="clear">Borrar</string>
+
+    <string name="trim_title">Elige la parte que quieres usar</string>
+    <string name="trim_summary">De %1$s a %2$s, %3$s</string>
+    <string name="trim_start">Inicio</string>
+    <string name="trim_length">Duración</string>
+    <string name="trim_whole">Audio completo</string>
+    <string name="trim_busy">Recortando…</string>
+
+    <string name="settings_contacts">Contactos</string>
+    <string name="contacts_switch">Sonido por contacto</string>
+    <string name="contacts_switch_help">Da a un contacto su propio tono. Desactivado de serie.</string>
+    <string name="contacts_permission_off">El permiso de contactos está desactivado, así que esta función no puede funcionar.</string>
+    <string name="contacts_allow">Permitir</string>
+    <string name="contacts_add">Elegir un contacto</string>
+    <string name="contacts_none">Ningún contacto tiene aún un sonido propio.</string>
+    <string name="contacts_remove">Quitar</string>
+    <string name="contacts_explain_title">Sonido por contacto</string>
+    <string name="contacts_explain_body">Para dar un sonido propio a un contacto, QuietRingtones necesita permiso para ver tus contactos y cambiar su ajuste de tono. No guardamos ni enviamos tus contactos: todo se queda en este teléfono y es solo para ti.</string>
+    <string name="not_now">Ahora no</string>
+    <string name="contacts_pick_title">Sonido para %1$s</string>
+    <string name="contact_unknown_sound">Sonido propio</string>
+    <string name="msg_contacts_denied">No se concedió el permiso de contactos. El sonido por contacto sigue desactivado.</string>
+    <string name="msg_contact_set">%1$s ahora suena con %2$s</string>
+    <string name="msg_contact_removed">%1$s vuelve a usar tu tono predeterminado</string>
 </resources>

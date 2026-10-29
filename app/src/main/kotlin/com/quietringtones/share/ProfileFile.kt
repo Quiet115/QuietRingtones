@@ -11,7 +11,10 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import org.json.JSONObject
 
-class ProfileFileException(message: String) : Exception(message)
+enum class ProfileFileProblem { NOT_A_PROFILE, NEWER_FORMAT, TOO_LARGE }
+
+/** [problem] decide qué se le dice al usuario: un archivo ajeno, uno de una versión más nueva o uno con un audio demasiado grande. */
+class ProfileFileException(val problem: ProfileFileProblem, message: String) : Exception(message)
 
 /**
  * Formato del archivo de perfil (.qrprofile): un zip con «profile.json» primero y un audio por cada tipo de sonido.
@@ -21,7 +24,7 @@ object ProfileFile {
     const val EXTENSION = "qrprofile"
     const val MANIFEST = "profile.json"
     const val MAX_MANIFEST_BYTES = 64 * 1024
-    const val MAX_AUDIO_BYTES = 25L * 1024 * 1024
+    const val MAX_AUDIO_BYTES = 50L * 1024 * 1024
     private const val FORMAT = 1
     private val AUDIO_NAME = Regex("^(ringtone|notification|alarm)\\.(mp3|m4a|aac|ogg|wav|flac)$")
 
@@ -45,10 +48,12 @@ object ProfileFile {
         val root = try {
             JSONObject(json)
         } catch (e: Exception) {
-            throw ProfileFileException("Not a profile")
+            throw ProfileFileException(ProfileFileProblem.NOT_A_PROFILE, "Not a profile")
         }
-        if (root.optInt("format", -1) != FORMAT) throw ProfileFileException("Unsupported format")
-        val sounds = root.optJSONObject("sounds") ?: throw ProfileFileException("No sounds")
+        val format = root.optInt("format", -1)
+        if (format > FORMAT) throw ProfileFileException(ProfileFileProblem.NEWER_FORMAT, "Made by a newer version")
+        if (format != FORMAT) throw ProfileFileException(ProfileFileProblem.NOT_A_PROFILE, "Unsupported format")
+        val sounds = root.optJSONObject("sounds") ?: throw ProfileFileException(ProfileFileProblem.NOT_A_PROFILE, "No sounds")
         val entries = mutableMapOf<SoundKind, BundleEntry>()
         SoundKind.entries.forEach { kind ->
             val item = sounds.optJSONObject(kind.name) ?: return@forEach
@@ -56,12 +61,12 @@ object ProfileFile {
                 item.optBoolean("silent", false) -> BundleEntry.Silent
                 else -> {
                     val file = item.optString("file")
-                    if (!AUDIO_NAME.matches(file) || !file.startsWith(kind.name.lowercase())) throw ProfileFileException("Bad file name")
+                    if (!AUDIO_NAME.matches(file) || !file.startsWith(kind.name.lowercase())) throw ProfileFileException(ProfileFileProblem.NOT_A_PROFILE, "Bad file name")
                     BundleEntry.Audio(item.optString("title"), file)
                 }
             }
         }
-        if (entries.isEmpty()) throw ProfileFileException("No sounds")
+        if (entries.isEmpty()) throw ProfileFileException(ProfileFileProblem.NOT_A_PROFILE, "No sounds")
         return ProfileBundle(root.optString("name"), entries)
     }
 
@@ -84,7 +89,7 @@ object ProfileFile {
         into.mkdirs()
         ZipInputStream(input).use { zip ->
             val first = zip.nextEntry
-            if (first == null || first.name != MANIFEST) throw ProfileFileException("Manifest must come first")
+            if (first == null || first.name != MANIFEST) throw ProfileFileException(ProfileFileProblem.NOT_A_PROFILE, "Manifest must come first")
             val bundle = parse(String(readLimited(zip, MAX_MANIFEST_BYTES.toLong()), Charsets.UTF_8))
             val wanted = bundle.entries.values.filterIsInstance<BundleEntry.Audio>().map { it.file }.toSet()
             val files = mutableMapOf<String, File>()
@@ -95,7 +100,7 @@ object ProfileFile {
                 target.outputStream().use { out -> copyLimited(zip, out, MAX_AUDIO_BYTES) }
                 files[entry.name] = target
             }
-            if (files.keys != wanted) throw ProfileFileException("Audio missing")
+            if (files.keys != wanted) throw ProfileFileException(ProfileFileProblem.NOT_A_PROFILE, "Audio missing")
             return bundle to files
         }
     }
@@ -113,7 +118,7 @@ object ProfileFile {
             val n = input.read(chunk)
             if (n < 0) return
             total += n
-            if (total > limit) throw ProfileFileException("Too large")
+            if (total > limit) throw ProfileFileException(ProfileFileProblem.TOO_LARGE, "Too large")
             out.write(chunk, 0, n)
         }
     }

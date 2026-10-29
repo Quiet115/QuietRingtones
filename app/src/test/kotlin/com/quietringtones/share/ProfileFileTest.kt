@@ -64,7 +64,24 @@ class ProfileFileTest {
     fun `a newer format is rejected`() {
         val json = ProfileFile.manifest(bundle).replace("\"format\":1", "\"format\":2")
 
-        assertFailsWith<ProfileFileException> { ProfileFile.parse(json) }
+        assertEquals(ProfileFileProblem.NEWER_FORMAT, assertFailsWith<ProfileFileException> { ProfileFile.parse(json) }.problem)
+    }
+
+    @Test
+    fun `an audio over the limit is reported as too large`() {
+        val manifest = ProfileFile.manifest(bundle).toByteArray()
+        val huge = ByteArray((ProfileFile.MAX_AUDIO_BYTES + 1).toInt())
+        val data = zip("profile.json" to manifest, "ringtone.mp3" to huge, "alarm.ogg" to byteArrayOf(1))
+
+        val error = assertFailsWith<ProfileFileException> { ProfileFile.read(ByteArrayInputStream(data), dir()) }
+        assertEquals(ProfileFileProblem.TOO_LARGE, error.problem)
+    }
+
+    @Test
+    fun `a file that is not a profile is reported as such`() {
+        val error = assertFailsWith<ProfileFileException> { ProfileFile.parse("{\"hello\":1}") }
+
+        assertEquals(ProfileFileProblem.NOT_A_PROFILE, error.problem)
     }
 
     @Test

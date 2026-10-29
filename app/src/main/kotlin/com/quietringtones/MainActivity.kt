@@ -115,8 +115,28 @@ class MainActivity : ComponentActivity() {
         super.attachBaseContext(newBase.withLanguage(activeLanguage))
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        offerIncomingProfile(intent)
+    }
+
+    /** Un archivo de perfil abierto o compartido desde otra app: se ofrece importarlo, no se importa solo. */
+    private fun offerIncomingProfile(intent: Intent) {
+        val source = when (intent.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+                else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM)
+            else -> null
+        } ?: return
+        viewModel.offerProfile(source)
+        // Para que al recrear la pantalla (por ejemplo, al cambiar de idioma) no se ofrezca de nuevo.
+        setIntent(Intent(Intent.ACTION_MAIN))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) offerIncomingProfile(intent)
         setContent {
             val appearance by viewModel.appearance.collectAsStateWithLifecycle()
             val language by viewModel.language.collectAsStateWithLifecycle()
@@ -157,6 +177,7 @@ private fun MainScreen(viewModel: AppViewModel) {
     val switches by viewModel.switches.collectAsStateWithLifecycle()
     val contactsUi by viewModel.contacts.collectAsStateWithLifecycle()
     val pendingContact by viewModel.pendingContact.collectAsStateWithLifecycle()
+    val incomingProfile by viewModel.incomingProfile.collectAsStateWithLifecycle()
     val appearance by viewModel.appearance.collectAsStateWithLifecycle()
     val language by viewModel.language.collectAsStateWithLifecycle()
     val updates by viewModel.updates.collectAsStateWithLifecycle()
@@ -173,6 +194,18 @@ private fun MainScreen(viewModel: AppViewModel) {
     LaunchedEffect(Unit) { viewModel.autoCheckOnStart() }
     // El catálogo online se pide la primera vez que se abre una pestaña de sonidos, no al arrancar.
     LaunchedEffect(tab) { if (tab < SoundKind.entries.size) viewModel.loadOnline() }
+    // Un perfil que llega de fuera se ve en Perfiles, que es donde aparecerá al importarlo.
+    LaunchedEffect(incomingProfile) { if (incomingProfile != null) tab = SoundKind.entries.size }
+
+    if (incomingProfile != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissIncomingProfile,
+            title = { Text(stringResource(R.string.profile_incoming_title)) },
+            text = { Text(stringResource(R.string.profile_incoming_body)) },
+            confirmButton = { Button(onClick = viewModel::confirmIncomingProfile) { Text(stringResource(R.string.profile_incoming_confirm)) } },
+            dismissButton = { TextButton(onClick = viewModel::dismissIncomingProfile) { Text(stringResource(R.string.cancel)) } },
+        )
+    }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -187,7 +220,7 @@ private fun MainScreen(viewModel: AppViewModel) {
     LaunchedEffect(Unit) {
         viewModel.shareRequests.collect { uri ->
             val send = Intent(Intent.ACTION_SEND)
-                .setType("application/octet-stream")
+                .setType("application/x-qrprofile")
                 .putExtra(Intent.EXTRA_STREAM, uri)
                 .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             send.clipData = android.content.ClipData.newRawUri("", uri)

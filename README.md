@@ -18,7 +18,7 @@ Change your Android ringtone, notification sound and alarm sound in one tap, imp
 - Trim your own audio: when you import a file you choose where it starts and how long it lasts (a few seconds or the whole file).
 - Search: filter any list and the online catalog by name.
 - Sound per contact (off by default): give a contact their own ringtone. Turning it on explains what it needs; contacts are read from your phone when shown and never kept or sent.
-- Share a profile with another phone: *Share* on any profile creates a `.qrprofile` file that carries the audio of its sounds; on the other phone, *Import a profile* adds those sounds and the profile (it never overwrites one you already have). You choose how to send the file; the app sends nothing itself.
+- Share a profile with another phone: *Share* on any profile creates a `.qrprofile` file that carries the audio of its sounds; on the other phone, open the file (tap it in WhatsApp, Files, Drive or Gmail and choose QuietRingtones, or use *Import a profile*) and confirm. Its sounds and the profile are added (it never overwrites one you already have). The other phone needs QuietRingtones installed. You choose how to send the file; the app sends nothing itself.
 - Other sounds: turn touch sounds, dial-pad tones and lock sounds on or off, with shortcuts to the keyboard and sound settings of the phone. Android only allows switching these on or off, not replacing them.
 - Updates: checks GitHub Releases when you open the app (on by default, can be turned off, or tap *Check for updates*). New versions download over Wi-Fi and you confirm the install. Older versions stay available on the [releases page](https://github.com/Quiet115/QuietRingtones/releases).
 

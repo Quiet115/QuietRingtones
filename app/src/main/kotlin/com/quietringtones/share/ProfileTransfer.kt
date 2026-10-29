@@ -9,6 +9,7 @@ import com.quietringtones.core.ProfileBundle
 import com.quietringtones.core.Selection
 import com.quietringtones.core.SoundKind
 import java.io.File
+import java.io.IOException
 
 class ExportedProfile(val uri: Uri, val skipped: Int)
 
@@ -28,7 +29,11 @@ class ProfileTransfer(private val context: Context) {
                 Selection.Silent -> entries[kind] = BundleEntry.Silent
                 is Selection.Chosen -> {
                     val uri = Uri.parse(selection.sound.id)
-                    val readable = runCatching { resolver.openInputStream(uri)?.use { true } ?: false }.getOrDefault(false)
+                    // Un audio que pasaría del tope de ProfileFile se deja fuera: así el archivo siempre se puede importar.
+                    val readable = runCatching {
+                        val length = resolver.openAssetFileDescriptor(uri, "r")?.use { it.length } ?: -1L
+                        resolver.openInputStream(uri)?.use { true } == true && length <= ProfileFile.MAX_AUDIO_BYTES
+                    }.getOrDefault(false)
                     if (readable) {
                         val file = ProfileFile.audioName(kind, extensionOf(resolver.getType(uri)))
                         entries[kind] = BundleEntry.Audio(selection.sound.name, file)
@@ -56,7 +61,7 @@ class ProfileTransfer(private val context: Context) {
     /** Lee un archivo de perfil; sus audios quedan en la caché hasta [cleanUpImport]. Lanza [ProfileFileException] si no es válido. */
     fun read(source: Uri): Pair<ProfileBundle, Map<String, File>> {
         importDir.deleteRecursively()
-        val input = context.contentResolver.openInputStream(source) ?: throw ProfileFileException("Cannot open")
+        val input = context.contentResolver.openInputStream(source) ?: throw IOException("Cannot open")
         return input.use { ProfileFile.read(it, importDir) }
     }
 

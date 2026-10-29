@@ -5,6 +5,7 @@ import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.ConnectivityManager
 import android.net.Uri
+import android.util.Log
 import androidx.annotation.StringRes
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -34,6 +35,7 @@ import com.quietringtones.trim.AudioTrimmer
 import com.quietringtones.online.OnlineCatalogSource
 import com.quietringtones.online.PreviewCache
 import com.quietringtones.share.ProfileFileException
+import com.quietringtones.share.ProfileFileProblem
 import com.quietringtones.share.ProfileTransfer
 import com.quietringtones.updates.GitHubReleases
 import com.quietringtones.updates.UpdateDownloader
@@ -201,15 +203,42 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         _shareRequests.tryEmit(exported.uri)
     }
 
+    /** Un archivo de perfil que llegó de fuera (abrir o compartir): no se importa hasta que el usuario lo confirma. */
+    private val _incomingProfile = MutableStateFlow<Uri?>(null)
+    val incomingProfile: StateFlow<Uri?> = _incomingProfile
+
+    fun offerProfile(source: Uri) {
+        _incomingProfile.value = source
+    }
+
+    fun confirmIncomingProfile() {
+        val source = _incomingProfile.value ?: return
+        _incomingProfile.value = null
+        importProfile(source)
+    }
+
+    fun dismissIncomingProfile() {
+        _incomingProfile.value = null
+    }
+
     fun importProfile(source: Uri) = launchIo {
         val message = try {
             val (bundle, files) = transfer.read(source)
             val profile = app.importProfile(bundle) { Uri.fromFile(files.getValue(it.file)).toString() }
             Message(R.string.msg_profile_imported, profile.name)
         } catch (e: ProfileFileException) {
-            Message(R.string.msg_profile_bad_file)
+            Log.w("QuietRingtones", "Profile file rejected: ${e.problem} (${e.message})")
+            Message(
+                when (e.problem) {
+                    ProfileFileProblem.NEWER_FORMAT -> R.string.msg_profile_newer
+                    ProfileFileProblem.TOO_LARGE -> R.string.msg_profile_too_large
+                    ProfileFileProblem.NOT_A_PROFILE -> R.string.msg_profile_bad_file
+                },
+            )
         } catch (e: IOException) {
-            Message(R.string.msg_profile_bad_file)
+            // Un zip cortado o truncado también llega aquí; el motivo se queda en el registro.
+            Log.w("QuietRingtones", "Profile file could not be read", e)
+            Message(R.string.msg_profile_unreadable)
         } finally {
             transfer.cleanUpImport()
         }

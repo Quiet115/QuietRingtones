@@ -8,11 +8,17 @@
     <string name="tab_profiles">Profiles</string>
     <string name="tab_settings">Settings</string>
     <string name="tab_other">Other sounds</string>
+    <string name="profile_incoming_title">Import this profile?</string>
+    <string name="profile_incoming_body">This file is a profile from another QuietRingtones. Its sounds will be added to this phone, and nothing changes until you tap Apply.</string>
+    <string name="profile_incoming_confirm">Import</string>
     <string name="profile_share">Share</string>
     <string name="profile_share_title">Share profile</string>
     <string name="profile_import">Import a profile</string>
     <string name="profile_import_help">Open a profile file someone shared from QuietRingtones. Its sounds are added to this phone.</string>
     <string name="msg_profile_imported">Profile imported: %1$s. Tap Apply to use it.</string>
+    <string name="msg_profile_newer">This profile was made by a newer version of QuietRingtones. Update the app and try again.</string>
+    <string name="msg_profile_too_large">This profile has a sound that is too big to import (over 50 MB).</string>
+    <string name="msg_profile_unreadable">Couldn\'t read that file. It may be cut off or incomplete: send it again and check that it arrives whole.</string>
     <string name="msg_profile_bad_file">That file isn\'t a QuietRingtones profile, or it is damaged.</string>
     <string name="msg_profile_export_empty">None of this profile\'s sounds could be read, so there is nothing to share.</string>
     <string name="msg_profile_export_partial">%1$s sound(s) couldn\'t be included because the phone didn\'t let the app read them.</string>
